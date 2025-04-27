@@ -6,6 +6,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { REDIS_CONFIG } from '../config/redis.config';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import { WINSTON_CONFIG } from '../config/logger.config';
+import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { WINSTON_CONFIG } from '../config/logger.config';
     WinstonModule.forRoot(WINSTON_CONFIG),
     RedisModule.forRootAsync(REDIS_CONFIG),
     SchedulerModule,
+    CatalogModule,
   ],
 })
 export class AppModule implements NestModule {
