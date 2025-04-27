@@ -57,13 +57,8 @@ Dockerfile.dev
 docker-compose.prod.yaml
 Dockerfile.prod
 
-# resource
-/resource
-/resource/*
-
 # script.sh
 script.sh
 
-# MongoDB
-/mongo-data
-/mongo-data/*
+# Firebase
+serviceAccountKey.json

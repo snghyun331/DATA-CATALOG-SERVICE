@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { CatalogRepository } from './repository/catalog.repository';
 import { ConnectDBConfig } from '../../config/db.config';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class CatalogService {
   constructor(
     private readonly catalogRepository: CatalogRepository,
     private readonly connectDBConfig: ConnectDBConfig,
+    private readonly firebaseService: FirebaseService,
   ) {}
 
   async findAll(companyName: string) {
@@ -22,4 +24,6 @@ export class CatalogService {
       connection.release();
     }
   }
+
+  async insertAll() {}
 }
