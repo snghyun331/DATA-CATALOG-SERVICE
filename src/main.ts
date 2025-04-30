@@ -9,6 +9,7 @@ import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.int
 import { ServerErrorFilter } from './common/filter/exception.filter';
 import { ResponseInterceptor } from './common/interceptor/response.interceptor';
 import { validationOptions } from './config/validation.config';
+import { setupSwagger } from './config/swagger.config';
 
 
 async function bootstrap() {
@@ -30,6 +31,8 @@ async function bootstrap() {
     credentials: true,
   };
   app.enableCors(corsOptions);
+
+  setupSwagger(app);
 
   app.useGlobalFilters(new ServerErrorFilter(winstonLogger));
 

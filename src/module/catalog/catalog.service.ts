@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CatalogRepository } from './repository/catalog.repository';
 import { ConnectDBConfig } from '../../config/db.config';
 import { FirebaseService } from '../firebase/firebase.service';
+import { CreateDbDto } from './dto/createDb.dto';
 
 @Injectable()
 export class CatalogService {
@@ -25,5 +26,5 @@ export class CatalogService {
     }
   }
 
-  async insertAll() {}
+  async createDb(dto: CreateDbDto) {}
 }

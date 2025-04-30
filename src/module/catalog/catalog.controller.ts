@@ -1,7 +1,8 @@
 // src/user/user.controller.ts
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { ResponseInterface } from '../../common/interface/response.interface';
+import { CreateDbDto } from './dto/createDb.dto';
 
 @Controller('api/catalog')
 export class CatalogController {
@@ -12,6 +13,15 @@ export class CatalogController {
     const data = await this.catalogService.findAll(company);
 
     const response = { message: 'success', data };
+
+    return response;
+  }
+
+  @Post('db')
+  async createDb(@Body() dto: CreateDbDto): Promise<ResponseInterface> {
+    await this.catalogService.createDb(dto);
+
+    const response: ResponseInterface = { message: 'success' };
 
     return response;
   }
