@@ -19,7 +19,7 @@ export class CatalogController {
 
   @Post('db')
   async createDb(@Body() dto: CreateDbDto): Promise<ResponseInterface> {
-    await this.catalogService.createDb(dto);
+    await this.catalogService.createDbAndCatalog(dto);
 
     const response: ResponseInterface = { message: 'success' };
 

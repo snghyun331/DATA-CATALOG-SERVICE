@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder, SwaggerCustomOptions, OpenAPIObject } from '@nestjs/swagger';
-import expressBasicAuth from 'express-basic-auth';
+import * as expressBasicAuth from 'express-basic-auth';
 
 const swaggerCustomOptions: SwaggerCustomOptions = {
   swaggerOptions: {

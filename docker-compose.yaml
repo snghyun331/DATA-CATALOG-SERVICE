@@ -18,6 +18,7 @@ services:
     volumes:
       - ./src:/myfolder/src
       - ./logs:/myfolder/logs
+      - .env:/myfolder/.env
     env_file:
       - './.env'
     environment:

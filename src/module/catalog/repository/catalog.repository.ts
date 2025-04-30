@@ -41,9 +41,19 @@ export class CatalogRepository {
     return this.poolCache.get(companyName)!;
   }
 
-  async getCatalog(dbName: string, connection: PoolConnection) {
+  async getTableCatalog(dbName: string, connection: PoolConnection) {
     const query = `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
         FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
+
+    const [rows] = await connection.query(query);
+
+    return rows;
+  }
+
+  async getMasterCatalog(dbName: string, connection: PoolConnection) {
+    const query = `SELECT TABLE_NAME, TABLE_ROWS, TABLE_COMMENT
+        FROM information_schema.TABLES
         WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
 
     const [rows] = await connection.query(query);
