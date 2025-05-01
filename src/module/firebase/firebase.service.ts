@@ -17,14 +17,25 @@ export class FirebaseService {
     this.firestore = admin.firestore();
   }
 
-  // JSON 데이터 저장
-  async saveDocument(collectionName: string, documentId: string, data: any): Promise<void> {
-    await this.firestore.collection(collectionName).doc(documentId).set(data);
+  async checkIfCatalogExist(collection: string, schema: string): Promise<boolean> {
+    const docSnapShot = await this.firestore.collection(collection).doc(schema).get();
+
+    return docSnapShot.exists;
   }
 
-  // 자동으로 docId 생성해서 저장
-  async addDocument(collectionName: string, data: any): Promise<string> {
-    const docRef = await this.firestore.collection(collectionName).add(data);
-    return docRef.id;
+  async saveDocument(collection: string, docId: string, data: any): Promise<void> {
+    await this.firestore.collection(collection).doc(docId).set(data, { merge: true });
+
+    return;
+  }
+
+  async saveDocumentUsingRef(ref: any, collection: string, docId: string, data: any): Promise<void> {
+    await ref.collection(collection).doc(docId).set(data, { merge: true });
+
+    return;
+  }
+
+  async getDocRef(collection: string, docId: string) {
+    return this.firestore.collection(collection).doc(docId);
   }
 }

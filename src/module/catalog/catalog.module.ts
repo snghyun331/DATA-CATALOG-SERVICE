@@ -6,7 +6,7 @@ import { ConnectDBConfig } from '../../config/db.config';
 import { FirebaseModule } from '../firebase/firebase.module';
 
 @Module({
-  // imports: [FirebaseModule],
+  imports: [FirebaseModule],
   controllers: [CatalogController],
   providers: [CatalogService, CatalogRepository, ConnectDBConfig, Logger],
 })

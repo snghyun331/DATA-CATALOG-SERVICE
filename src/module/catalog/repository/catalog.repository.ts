@@ -42,7 +42,7 @@ export class CatalogRepository {
   }
 
   async getTableCatalog(dbName: string, connection: PoolConnection) {
-    const query = `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
+    const query = `SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
         FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
 
@@ -52,7 +52,7 @@ export class CatalogRepository {
   }
 
   async getMasterCatalog(dbName: string, connection: PoolConnection) {
-    const query = `SELECT TABLE_NAME, TABLE_ROWS, TABLE_COMMENT
+    const query = `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, TABLE_COMMENT
         FROM information_schema.TABLES
         WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
 
