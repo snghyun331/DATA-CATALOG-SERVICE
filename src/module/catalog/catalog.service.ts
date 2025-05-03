@@ -15,18 +15,15 @@ export class CatalogService {
     private readonly firebaseService: FirebaseService,
   ) {}
 
-  async findAll(companyName: string) {
-    const connection = await this.catalogRepository.getConnectionToDB(companyName);
+  async getMasterCatalog(companyCode: string) {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+    const mainCollection = 'masterCatalog';
+    const subCollection = 'tables';
+    const schema = dbConfig.dbName;
+    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, schema, subCollection);
+    const result = snapshot.docs.map((doc) => doc.data());
 
-    try {
-      const dbConfig = await this.connectDBConfig.getDBConfig(companyName);
-      const dbName: string = dbConfig.dbName;
-      const rows = await this.catalogRepository.getTableCatalog(dbName, connection);
-
-      return rows;
-    } finally {
-      connection.release();
-    }
+    return result;
   }
 
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
@@ -55,8 +52,8 @@ export class CatalogService {
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
     try {
       // catalog 정보 불러오기
-      const tableRows = await this.catalogRepository.getTableCatalog(dbInfo.dbName, connection);
-      const masterRows = await this.catalogRepository.getMasterCatalog(dbInfo.dbName, connection);
+      const tableRows = await this.catalogRepository.getTableCatalogInDb(dbInfo.dbName, connection);
+      const masterRows = await this.catalogRepository.getMasterCatalogInDb(dbInfo.dbName, connection);
       // table / master row 재구성
       const finalTableRows = await this.handleTableRows(tableRows);
       const finalMasterRows = await this.handleMasterRows(tableRows, masterRows);

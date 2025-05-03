@@ -5,8 +5,8 @@ import { ConfigService } from '@nestjs/config';
 export class ConnectDBConfig {
   constructor(public readonly configService: ConfigService) {}
 
-  async getDBConfig(companyName: string) {
-    const prefix: string = `DB_${companyName.toUpperCase()}`;
+  async getDBConfig(companyCode: string) {
+    const prefix: string = `DB_${companyCode.toUpperCase()}`;
 
     return {
       host: this.configService.get<string>(`${prefix}_HOST`),

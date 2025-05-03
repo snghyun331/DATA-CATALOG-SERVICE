@@ -7,20 +7,20 @@ import { CreateDbDto } from './dto/createDb.dto';
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 
-  @Get(':company')
-  async getUsers(@Param('company') company: string): Promise<ResponseInterface> {
-    const data = await this.catalogService.findAll(company);
-
-    const response = { message: 'success', data };
-
-    return response;
-  }
-
   @Post('db')
   async createDb(@Body() dto: CreateDbDto): Promise<ResponseInterface> {
     await this.catalogService.createDbAndCatalog(dto);
 
     const response: ResponseInterface = { message: 'success' };
+
+    return response;
+  }
+
+  @Get(':companyCode/master')
+  async getMasterCatalog(@Param('companyCode') companyCode: string): Promise<ResponseInterface> {
+    const data = await this.catalogService.getMasterCatalog(companyCode);
+
+    const response = { message: 'success', data };
 
     return response;
   }
