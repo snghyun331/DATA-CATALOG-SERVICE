@@ -30,26 +30,29 @@ export class CatalogService {
   }
 
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
-    const { company, ...dbInfo } = dto;
+    const { companyCode, companyName, ...dbInfo } = dto;
 
     /* 이미 같은 DB를 저장했다면 예외처리 */
-    const isExist: boolean = await this.firebaseService.checkIfCatalogExist('masterCatalog', dbInfo.dbName);
-    if (isExist) {
+    const isCatalogExist: boolean = await this.firebaseService.checkIfDocDataExist('masterCatalog', dbInfo.dbName);
+    if (isCatalogExist) {
       throw new ConflictException('해당 DB는 이미 추가되었습니다.');
     }
 
     /* 입력받은 정보를 .env에 저장 */
     const envFormatted = {
-      [`DB_${company}_HOST`]: dbInfo.dbHost,
-      [`DB_${company}_PORT`]: dbInfo.dbPort,
-      [`DB_${company}_USER`]: dbInfo.dbUser,
-      [`DB_${company}_NAME`]: dbInfo.dbName,
-      [`DB_${company}_PW`]: dbInfo.dbPw,
+      [`DB_${companyCode}_HOST`]: dbInfo.dbHost,
+      [`DB_${companyCode}_PORT`]: dbInfo.dbPort,
+      [`DB_${companyCode}_USER`]: dbInfo.dbUser,
+      [`DB_${companyCode}_NAME`]: dbInfo.dbName,
+      [`DB_${companyCode}_PW`]: dbInfo.dbPw,
     };
     updateEnvFile(envFormatted);
 
+    /* 고객사 정보를 firebase에 저장 */
+    await this.saveCompanyInfoInFirebase(companyCode, companyName);
+
     /* DB로부터 Catalog 정보 불러오기 & 모두 firebase에 저장 */
-    const connection = await this.catalogRepository.getConnectionToDB(company);
+    const connection = await this.catalogRepository.getConnectionToDB(companyCode);
     try {
       // catalog 정보 불러오기
       const tableRows = await this.catalogRepository.getTableCatalog(dbInfo.dbName, connection);
@@ -66,6 +69,13 @@ export class CatalogService {
     } finally {
       connection.release();
     }
+  }
+
+  private async saveCompanyInfoInFirebase(companyCode: string, companyName: string) {
+    const collection = 'company';
+    const data = { companyCode, companyName };
+
+    await this.firebaseService.saveDocument(collection, companyCode, data);
   }
 
   private async handleMasterRows(tableRows: any, masterRows: any) {

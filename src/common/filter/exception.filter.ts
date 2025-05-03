@@ -36,28 +36,27 @@ export class ServerErrorFilter implements ExceptionFilter {
       );
     }
 
+    let status: number;
+    let message: string = '알 수 없는 에러 발생';
+
     if (exception instanceof HttpException) {
-      const status: number = exception.getStatus();
-      const err: string | object = exception.getResponse();
-      const errReponse = typeof err === 'string' ? { message: err } : err;
-
-      const errResponseBody: object = {
-        ...errReponse,
-        path: request.url,
-      };
-
-      return response.status(status).json(errResponseBody);
+      status = exception.getStatus();
+      const err = exception.getResponse();
+      message = typeof err === 'string' ? err : (err as any).message || message;
+    } else if (exception instanceof QueryFailedError) {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = '쿼리 장애 발생';
     } else {
-      const status: number = HttpStatus.INTERNAL_SERVER_ERROR;
-      const message: string = exception instanceof QueryFailedError ? '쿼리 장애 발생' : '알 수 없는 에러 발생';
-
-      const errResponseBody: object = {
-        statusCode: status,
-        message,
-        path: request.url,
-      };
-
-      return response.status(status).json(errResponseBody);
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = exception.message || message;
     }
+
+    const errResponseBody = {
+      statusCode: status,
+      message,
+      path: request.url,
+    };
+
+    return response.status(status).json(errResponseBody);
   }
 }

@@ -1,13 +1,20 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNumber, IsString } from 'class-validator';
+import { IsNumber, IsString, Matches } from 'class-validator';
 
 export class CreateDbDto {
-  @ApiProperty({ type: String, description: '고객사명', example: 'CJ', required: true })
+  @ApiProperty({ type: String, description: '고객사 코드', example: 'LOTTE', required: true })
   @IsString()
+  @Matches(/^[A-Za-z]+$/, {
+    message: '영문자만 입력가능합니다.',
+  })
   @Transform(({ value }) => value.toUpperCase())
   @Transform(({ value }) => value.replace(/\s+/g, ''))
-  company: string;
+  companyCode: string;
+
+  @ApiProperty({ type: String, description: '고객사명', example: '롯데', required: true })
+  @IsString()
+  companyName: string;
 
   @ApiProperty({ type: String, description: 'DB Host', example: '115.68.68.138', required: true })
   @IsString()

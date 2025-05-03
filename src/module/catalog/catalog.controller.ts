@@ -1,4 +1,3 @@
-// src/user/user.controller.ts
 import { Controller, Get, Post, Param, Body } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { ResponseInterface } from '../../common/interface/response.interface';

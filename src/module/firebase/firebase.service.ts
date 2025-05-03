@@ -17,10 +17,16 @@ export class FirebaseService {
     this.firestore = admin.firestore();
   }
 
-  async checkIfCatalogExist(collection: string, schema: string): Promise<boolean> {
-    const docSnapShot = await this.firestore.collection(collection).doc(schema).get();
+  async checkIfDocDataExist(collection: string, docId: string): Promise<boolean> {
+    const docSnapShot = await this.firestore.collection(collection).doc(docId).get();
 
     return docSnapShot.exists;
+  }
+
+  async getCollectonData(collection: string) {
+    const data = await this.firestore.collection(collection).get();
+
+    return data;
   }
 
   async saveDocument(collection: string, docId: string, data: any): Promise<void> {
@@ -36,6 +42,8 @@ export class FirebaseService {
   }
 
   async getDocRef(collection: string, docId: string) {
-    return this.firestore.collection(collection).doc(docId);
+    const ref = this.firestore.collection(collection).doc(docId);
+
+    return ref;
   }
 }
