@@ -4,6 +4,7 @@ import { ConnectDBConfig } from '../../config/db.config';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateDbDto } from './dto/createDb.dto';
 import { updateEnvFile } from '../../common/utils/utility';
+import { TableColumns } from './interface/catalog.interface';
 
 @Injectable()
 export class CatalogService {
@@ -167,5 +168,144 @@ export class CatalogService {
         await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, tableName, masterRow);
       }),
     );
+  }
+
+  async detectChanges(companyCode: string) {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+    const connection = await this.catalogRepository.getConnectionToDB(companyCode);
+    try {
+      const newSchema: TableColumns[] = (await this.catalogRepository.getTableCatalogInDb(
+        dbConfig.dbName,
+        connection,
+      )) as TableColumns[];
+      const collection = 'tableCatalog';
+      const docId = dbConfig.dbName;
+      const subCollections = await this.firebaseService.getAllSubCollections(collection, docId);
+      const oldSchema: TableColumns[][] = await Promise.all(
+        subCollections.map(async (subCollection) => {
+          const snapshot = await subCollection.get();
+          const docs: TableColumns[] = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+              TABLE_SCHEMA: data.TABLE_SCHEMA,
+              TABLE_NAME: data.TABLE_NAME,
+              COLUMN_NAME: data.COLUMN_NAME,
+              COLUMN_DEFAULT: data.COLUMN_DEFAULT,
+              IS_NULLABLE: data.IS_NULLABLE,
+              COLUMN_TYPE: data.COLUMN_TYPE,
+              COLUMN_KEY: data.COLUMN_KEY,
+              COLUMN_COMMENT: data.COLUMN_COMMENT,
+            };
+          });
+
+          return docs;
+        }),
+      );
+
+      const result = await this.compareSchemas(newSchema, oldSchema.flat());
+
+      return result;
+    } catch (err) {
+      this.logger.error(err);
+    } finally {
+      connection.release();
+    }
+  }
+
+  private async compareSchemas(newSchema: TableColumns[], oldSchema: TableColumns[]) {
+    const result = {
+      changed: false,
+      tables: {
+        changed: false,
+        added: [] as { table: string }[],
+        deleted: [] as { table: string }[],
+      },
+      columns: {
+        changed: false,
+        added: [] as { table: string }[],
+        deleted: [] as { table: string }[],
+        updated: [] as { table: string }[],
+      },
+    };
+
+    const oldTables = await this.groupByTableName(oldSchema);
+    const newTables = await this.groupByTableName(newSchema);
+
+    // 모든 테이블 이름을 하나로 모음
+    const allTableNames = Array.from(new Set([...Object.keys(oldTables), ...Object.keys(newTables)]));
+
+    await Promise.all(
+      allTableNames.map(async (tableName) => {
+        const oldColumns = oldTables[tableName] || [];
+        const newColumns = newTables[tableName] || [];
+
+        // ▶ 테이블 추가 감지
+        if (oldColumns.length === 0 && newColumns.length > 0) {
+          result.tables.added.push({ table: tableName });
+          result.tables.changed = true;
+          result.changed = true;
+        }
+
+        // ▶ 테이블 삭제 감지
+        if (newColumns.length === 0 && oldColumns.length > 0) {
+          result.tables.deleted.push({ table: tableName });
+          result.tables.changed = true;
+          result.changed = true;
+        }
+
+        // 컬럼 이름 목록 정리
+        const oldColNames = oldColumns.map((col) => col.COLUMN_NAME);
+        const newColNames = newColumns.map((col) => col.COLUMN_NAME);
+
+        // ▶ 컬럼 추가
+        const added = newColNames.filter((name) => !oldColNames.includes(name));
+        if (added.length > 0) {
+          result.columns.added.push({ table: tableName });
+          result.columns.changed = true;
+          result.changed = true;
+        }
+
+        // ▶ 컬럼 삭제
+        const deleted = oldColNames.filter((name) => !newColNames.includes(name));
+        if (deleted.length > 0) {
+          result.columns.deleted.push({ table: tableName });
+          result.columns.changed = true;
+          result.changed = true;
+        }
+
+        // ▶ 컬럼 수정
+        const updated = newColNames.filter((name) => {
+          const oldCol = oldColumns.find((c) => c.COLUMN_NAME === name);
+          const newCol = newColumns.find((c) => c.COLUMN_NAME === name);
+          return (
+            oldCol && newCol && (oldCol.COLUMN_TYPE !== newCol.COLUMN_TYPE || oldCol.IS_NULLABLE !== newCol.IS_NULLABLE)
+          );
+        });
+
+        if (updated.length > 0) {
+          result.columns.updated.push({ table: tableName });
+          result.columns.changed = true;
+          result.changed = true;
+        }
+      }),
+    );
+
+    return result;
+  }
+
+  private async groupByTableName(schema: TableColumns[]) {
+    const result = {};
+
+    await Promise.all(
+      schema.map(async (row) => {
+        const table = row.TABLE_NAME;
+        if (!result[table]) {
+          result[table] = [];
+        }
+        result[table].push(row);
+      }),
+    );
+
+    return result;
   }
 }

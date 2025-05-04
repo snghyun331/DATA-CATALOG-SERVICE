@@ -36,4 +36,13 @@ export class CatalogController {
 
     return response;
   }
+
+  @Get(':companyCode/diff')
+  async detectChanges(@Param('companyCode') companyCode: string): Promise<ResponseInterface> {
+    const data = await this.catalogService.detectChanges(companyCode);
+
+    const response: ResponseInterface = { message: 'success', data };
+
+    return response;
+  }
 }

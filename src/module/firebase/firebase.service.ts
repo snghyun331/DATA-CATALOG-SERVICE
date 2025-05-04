@@ -29,6 +29,12 @@ export class FirebaseService {
     return data;
   }
 
+  async getAllSubCollections(collection: string, docId: string) {
+    const collections = await this.firestore.collection(collection).doc(docId).listCollections();
+
+    return collections;
+  }
+
   async getSubCollectionData(mainCollection: string, docId: string, subCollection: string) {
     const data = await this.firestore.collection(mainCollection).doc(docId).collection(subCollection).get();
 
