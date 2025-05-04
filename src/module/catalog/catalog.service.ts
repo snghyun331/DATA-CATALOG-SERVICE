@@ -26,14 +26,18 @@ export class CatalogService {
     return result;
   }
 
+  async getTableCatalog(companyCode: string, tableName: string) {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+    const mainCollection = 'tableCatalog';
+    const schema = dbConfig.dbName;
+    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, schema, tableName);
+    const result = snapshot.docs.map((doc) => doc.data());
+
+    return result;
+  }
+
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
     const { companyCode, companyName, ...dbInfo } = dto;
-
-    /* 이미 같은 DB를 저장했다면 예외처리 */
-    const isCatalogExist: boolean = await this.firebaseService.checkIfDocDataExist('masterCatalog', dbInfo.dbName);
-    if (isCatalogExist) {
-      throw new ConflictException('해당 DB는 이미 추가되었습니다.');
-    }
 
     /* 입력받은 정보를 .env에 저장 */
     const envFormatted = {
@@ -45,12 +49,18 @@ export class CatalogService {
     };
     updateEnvFile(envFormatted);
 
-    /* 고객사 정보를 firebase에 저장 */
-    await this.saveCompanyInfoInFirebase(companyCode, companyName);
-
     /* DB로부터 Catalog 정보 불러오기 & 모두 firebase에 저장 */
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
     try {
+      // 이미 같은 DB를 저장했다면 예외처리
+      const isCatalogExist: boolean = await this.firebaseService.checkIfDocDataExist('masterCatalog', dbInfo.dbName);
+      if (isCatalogExist) {
+        throw new ConflictException('해당 DB는 이미 추가되었습니다.');
+      }
+
+      // 고객사 정보를 firebase에 저장
+      await this.saveCompanyInfoInFirebase(companyCode, companyName);
+
       // catalog 정보 불러오기
       const tableRows = await this.catalogRepository.getTableCatalogInDb(dbInfo.dbName, connection);
       const masterRows = await this.catalogRepository.getMasterCatalogInDb(dbInfo.dbName, connection);
@@ -72,7 +82,7 @@ export class CatalogService {
     const collection = 'company';
     const data = { companyCode, companyName };
 
-    await this.firebaseService.saveDocument(collection, companyCode, data);
+    await this.firebaseService.setDocument(collection, companyCode, data);
   }
 
   private async handleMasterRows(tableRows: any, masterRows: any) {
@@ -133,14 +143,13 @@ export class CatalogService {
   private async saveTableRowsInFirebase(tableRows: any) {
     const mainCollection = 'tableCatalog';
     const schema = tableRows[0].TABLE_SCHEMA;
-    await this.firebaseService.saveDocument(mainCollection, schema, { updatedAt: new Date() });
+    await this.firebaseService.setDocument(mainCollection, schema, { updatedAt: new Date() });
 
     const dbDocRef = await this.firebaseService.getDocRef(mainCollection, schema);
     await Promise.all(
       tableRows.map(async (tableRow: any) => {
-        const subCollection = 'tables';
-        const table = tableRow.TABLE_NAME;
-        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, table, tableRow);
+        const subCollection = tableRow.TABLE_NAME;
+        await this.firebaseService.addDocumentUsingRef(dbDocRef, subCollection, tableRow);
       }),
     );
   }
@@ -148,14 +157,14 @@ export class CatalogService {
   private async saveMasterRowsInFirebase(masterRows: any) {
     const mainCollection = 'masterCatalog';
     const schema = masterRows[0].TABLE_SCHEMA;
-    await this.firebaseService.saveDocument(mainCollection, schema, { updatedAt: new Date() });
+    await this.firebaseService.setDocument(mainCollection, schema, { updatedAt: new Date() });
 
     const dbDocRef = await this.firebaseService.getDocRef(mainCollection, schema);
     await Promise.all(
       masterRows.map(async (masterRow: any) => {
         const subCollection = 'tables';
-        const table = masterRow.TABLE_NAME;
-        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, table, masterRow);
+        const tableName = masterRow.TABLE_NAME;
+        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, tableName, masterRow);
       }),
     );
   }

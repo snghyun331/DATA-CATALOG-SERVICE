@@ -35,13 +35,24 @@ export class FirebaseService {
     return data;
   }
 
+  async getSubDocData(mainCollection: string, mainDocId: string, subCollection: string, subDocId: string) {
+    const data = await this.firestore
+      .collection(mainCollection)
+      .doc(mainDocId)
+      .collection(subCollection)
+      .doc(subDocId)
+      .get();
+
+    return data;
+  }
+
   async getDocRef(collection: string, docId: string) {
     const ref = this.firestore.collection(collection).doc(docId);
 
     return ref;
   }
 
-  async saveDocument(collection: string, docId: string, data: any): Promise<void> {
+  async setDocument(collection: string, docId: string, data: any): Promise<void> {
     await this.firestore.collection(collection).doc(docId).set(data, { merge: true });
 
     return;
@@ -49,6 +60,12 @@ export class FirebaseService {
 
   async saveDocumentUsingRef(ref: any, collection: string, docId: string, data: any): Promise<void> {
     await ref.collection(collection).doc(docId).set(data, { merge: true });
+
+    return;
+  }
+
+  async addDocumentUsingRef(ref: any, collection: string, data: any): Promise<void> {
+    await ref.collection(collection).add(data);
 
     return;
   }

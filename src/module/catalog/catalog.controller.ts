@@ -24,4 +24,16 @@ export class CatalogController {
 
     return response;
   }
+
+  @Get(':companyCode/tables/:tableName')
+  async getTableCatalog(
+    @Param('companyCode') companyCode: string,
+    @Param('tableName') tableName: string,
+  ): Promise<ResponseInterface> {
+    const data = await this.catalogService.getTableCatalog(companyCode, tableName);
+
+    const response = { message: 'success', data };
+
+    return response;
+  }
 }
