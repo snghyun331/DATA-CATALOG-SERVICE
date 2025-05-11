@@ -386,4 +386,15 @@ export class CatalogService {
 
     return finalTableRows;
   }
+
+  async updateColumnNote(companyCode: string, tableName: string, columnName: string, note: string): Promise<void> {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+    const collection = 'tableCatalog';
+    const docId = dbConfig.dbName;
+    const subCollection = tableName;
+    const subDocId = columnName;
+    await this.firebaseService.updateColumnNote(collection, docId, subCollection, subDocId, note);
+
+    return;
+  }
 }

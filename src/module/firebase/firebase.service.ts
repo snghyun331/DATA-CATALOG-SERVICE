@@ -69,4 +69,21 @@ export class FirebaseService {
 
     return;
   }
+
+  async updateColumnNote(
+    collection: string,
+    docId: string,
+    subCollection: string,
+    subDocId: string,
+    data: string,
+  ): Promise<void> {
+    await this.firestore
+      .collection(collection)
+      .doc(docId)
+      .collection(subCollection)
+      .doc(subDocId)
+      .update({ COLUMN_NOTE: data });
+
+    return;
+  }
 }
