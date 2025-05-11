@@ -86,4 +86,21 @@ export class FirebaseService {
 
     return;
   }
+
+  async updateTableDescription(
+    collection: string,
+    docId: string,
+    subCollection: string,
+    subDocId: string,
+    data: string,
+  ): Promise<void> {
+    await this.firestore
+      .collection(collection)
+      .doc(docId)
+      .collection(subCollection)
+      .doc(subDocId)
+      .update({ TABLE_DESCRIPTION: data });
+
+    return;
+  }
 }

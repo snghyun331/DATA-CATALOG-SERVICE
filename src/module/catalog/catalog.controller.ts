@@ -3,6 +3,7 @@ import { CatalogService } from './catalog.service';
 import { ResponseInterface } from '../../common/interface/response.interface';
 import { CreateDbDto } from './dto/createDb.dto';
 import { UpdateColumnNoteDto } from './dto/updateColumnNote.dto';
+import { UpdateTableDescription } from './dto/updateTableDescription.dto';
 
 @Controller('api/catalog')
 export class CatalogController {
@@ -56,7 +57,7 @@ export class CatalogController {
     return response;
   }
 
-  @Patch(':companyCode/:tableName/:columnName')
+  @Patch(':companyCode/tables/:tableName/:columnName')
   async updateColumnNote(
     @Param('companyCode') companyCode: string,
     @Param('tableName') tableName: string,
@@ -64,6 +65,19 @@ export class CatalogController {
     @Body() { note }: UpdateColumnNoteDto,
   ): Promise<ResponseInterface> {
     await this.catalogService.updateColumnNote(companyCode, tableName, columnName, note);
+
+    const response: ResponseInterface = { message: 'success' };
+
+    return response;
+  }
+
+  @Patch(':companyCode/master/:tableName')
+  async updateTableDescription(
+    @Param('companyCode') companyCode: string,
+    @Param('tableName') tableName: string,
+    @Body() { description }: UpdateTableDescription,
+  ): Promise<ResponseInterface> {
+    await this.catalogService.updateTableDescription(companyCode, tableName, description);
 
     const response: ResponseInterface = { message: 'success' };
 

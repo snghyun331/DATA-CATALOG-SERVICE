@@ -397,4 +397,15 @@ export class CatalogService {
 
     return;
   }
+
+  async updateTableDescription(companyCode: string, tableName: string, description: string) {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+    const collection = 'masterCatalog';
+    const docId = dbConfig.dbName;
+    const subCollection = 'tables';
+    const subDocId = tableName;
+    await this.firebaseService.updateTableDescription(collection, docId, subCollection, subDocId, description);
+
+    return;
+  }
 }
