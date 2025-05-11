@@ -69,10 +69,4 @@ export class FirebaseService {
 
     return;
   }
-
-  async addDocumentUsingRef(ref: any, collection: string, data: any): Promise<void> {
-    await ref.collection(collection).add(data);
-
-    return;
-  }
 }

@@ -74,6 +74,7 @@ export class CatalogService {
       // 캐싱
     } catch (err) {
       this.logger.error(err);
+      throw err;
     } finally {
       connection.release();
     }
@@ -150,7 +151,8 @@ export class CatalogService {
     await Promise.all(
       tableRows.map(async (tableRow: any) => {
         const subCollection = tableRow.TABLE_NAME;
-        await this.firebaseService.addDocumentUsingRef(dbDocRef, subCollection, tableRow);
+        const subDocId = tableRow.COLUMN_NAME;
+        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, subDocId, tableRow);
       }),
     );
   }
@@ -164,8 +166,8 @@ export class CatalogService {
     await Promise.all(
       masterRows.map(async (masterRow: any) => {
         const subCollection = 'tables';
-        const tableName = masterRow.TABLE_NAME;
-        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, tableName, masterRow);
+        const subDocId = masterRow.TABLE_NAME;
+        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, subDocId, masterRow);
       }),
     );
   }
@@ -307,5 +309,81 @@ export class CatalogService {
     );
 
     return result;
+  }
+
+  async updateCatalog(companyCode: string) {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+
+    /* DB로부터 Catalog 정보 불러오기 & 모두 firebase에 저장 */
+    const connection = await this.catalogRepository.getConnectionToDB(companyCode);
+    try {
+      // catalog 정보 불러오기
+      const tableRows = await this.catalogRepository.getTableCatalogInDb(dbConfig.dbName, connection);
+      const masterRows = await this.catalogRepository.getMasterCatalogInDb(dbConfig.dbName, connection);
+      // table / master row 재구성
+      const finalTableRows = await this.updateTableRows(tableRows);
+      const finalMasterRows = await this.updateMasterRows(tableRows, masterRows);
+      // firebase에 저장
+      await this.saveTableRowsInFirebase(finalTableRows);
+      await this.saveMasterRowsInFirebase(finalMasterRows);
+      // 캐싱
+    } catch (err) {
+      this.logger.error(err);
+    } finally {
+      connection.release();
+    }
+  }
+
+  private async updateMasterRows(tableRows: any, masterRows: any) {
+    // 컬럼 수 계산
+    const tableColumnCount = {};
+    await Promise.all(
+      tableRows.map(async (tableRow: any) => {
+        const key: string = `${tableRow.TABLE_SCHEMA}.${tableRow.TABLE_NAME}`;
+        if (tableColumnCount[key] === undefined) {
+          tableColumnCount[key] = 1;
+        } else {
+          tableColumnCount[key] += 1;
+        }
+      }),
+    );
+
+    // master catalog 구조 재구성
+    const finalMasterRows = await Promise.all(
+      masterRows.map(async (masterRow: any) => {
+        const key: string = `${masterRow.TABLE_SCHEMA}.${masterRow.TABLE_NAME}`;
+
+        return {
+          TABLE_SCHEMA: masterRow.TABLE_SCHEMA,
+          TABLE_NAME: masterRow.TABLE_NAME,
+          TABLE_ROWS: masterRow.TABLE_ROWS,
+          TABLE_COLUMNS: tableColumnCount[key] || 0,
+          TABLE_COMMENT: masterRow.TABLE_COMMENT,
+          TABLE_SHEET: '',
+        };
+      }),
+    );
+
+    return finalMasterRows;
+  }
+
+  private async updateTableRows(tableRows: any) {
+    // table Catalog 구조 재구성
+    const finalTableRows = await Promise.all(
+      tableRows.map(async (tableRow: any) => {
+        return {
+          TABLE_SCHEMA: tableRow.TABLE_SCHEMA,
+          TABLE_NAME: tableRow.TABLE_NAME,
+          COLUMN_NAME: tableRow.COLUMN_NAME,
+          COLUMN_DEFAULT: tableRow.COLUMN_DEFAULT,
+          IS_NULLABLE: tableRow.IS_NULLABLE,
+          COLUMN_TYPE: tableRow.COLUMN_TYPE,
+          COLUMN_KEY: tableRow.COLUMN_KEY,
+          COLUMN_COMMENT: tableRow.COLUMN_COMMENT,
+        };
+      }),
+    );
+
+    return finalTableRows;
   }
 }
