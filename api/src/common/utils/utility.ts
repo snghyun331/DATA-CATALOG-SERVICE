@@ -1,4 +1,3 @@
-import { TableColumns } from '../../module/catalog/interface/catalog.interface';
 import { ENV_PATH } from '../constant/path';
 import * as fs from 'fs';
 

@@ -1,7 +1,7 @@
 # compiled output
-/dist
-/node_modules
-/build
+dist
+build
+node_modules
 
 # Logs
 logs
@@ -48,17 +48,8 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Redis
-/redis-data
-/redis-data/*
-
-# Docker file
-docker-compose.dev.yaml
-Dockerfile.dev
-docker-compose.prod.yaml
-Dockerfile.prod
+redis-data
+redis-data/*
 
 # script.sh
 script.sh
-
-# Firebase
-serviceAccountKey.json

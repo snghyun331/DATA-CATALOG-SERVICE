@@ -1,9 +1,9 @@
 services:
-  acg-catalog:
+  catalog-server:
     build:
-      context: '.'
+      context: './api'
       dockerfile: Dockerfile
-    container_name: 'acg-catalog'
+    container_name: 'catalog-server'
     deploy:
       # 자원 정책
       resources:
@@ -16,11 +16,11 @@ services:
     ports:
       - '${SERVER_PORT}:${SERVER_PORT}'
     volumes:
-      - ./src:/myfolder/src
-      - ./logs:/myfolder/logs
-      - .env:/myfolder/.env
+      - ./api/src:/api/src
+      - ./api/logs:/api/logs
+      - ./api/.env:/api/.env
     env_file:
-      - './.env'
+      - './api/.env'
     environment:
       - TZ=Asia/Seoul
 
@@ -37,6 +37,21 @@ services:
       retries: 3
     networks:
       - acg-catalog-net_default
+
+  catalog-client:
+    build:
+      context: './client'
+      dockerfile: Dockerfile
+    container_name: 'catalog-client'
+    networks:
+      - acg-catalog-net_default
+    ports:
+      - '${CLIENT_PORT}:${CLIENT_PORT}'
+    volumes:
+      - ./client/src:/client/src
+      - ./client/public:/client/public
+    environment:
+      - TZ=Asia/Seoul
 
 networks:
   acg-catalog-net_default:

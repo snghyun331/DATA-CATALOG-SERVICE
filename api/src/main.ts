@@ -11,10 +11,7 @@ import { ResponseInterceptor } from './common/interceptor/response.interceptor';
 import { validationOptions } from './config/validation.config';
 import { setupSwagger } from './config/swagger.config';
 
-
 async function bootstrap() {
-
-
   const winstonLogger: LoggerService = WinstonModule.createLogger(WINSTON_CONFIG);
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     cors: true,
