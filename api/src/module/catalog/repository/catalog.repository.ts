@@ -52,12 +52,22 @@ export class CatalogRepository {
   }
 
   async getMasterCatalogInDb(dbName: string, connection: PoolConnection) {
-    const query = `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, TABLE_COMMENT
+    const query = `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, ROUND((DATA_LENGTH / 1024 / 1024),2) as DATA_SIZE
         FROM information_schema.TABLES
         WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
 
     const [rows] = await connection.query(query);
 
     return rows;
+  }
+
+  async getDatabaseDataSize(dbName: string, connection: PoolConnection): Promise<number> {
+    const query = `SELECT ROUND(SUM(DATA_LENGTH) / 1024 / 1024, 2) AS DB_DATA_SIZE
+        FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = '${dbName}'`;
+
+    const [rows] = await connection.query(query);
+
+    return Number(rows[0].DB_DATA_SIZE);
   }
 }

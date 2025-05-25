@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Body, Delete, Put, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Put, Patch } from '@nestjs/common';
 import { CatalogService } from './catalog.service';
 import { ResponseInterface } from '../../common/interface/response.interface';
 import { CreateDbDto } from './dto/createDb.dto';
@@ -14,6 +14,15 @@ export class CatalogController {
     await this.catalogService.createDbAndCatalog(dto);
 
     const response: ResponseInterface = { message: 'success' };
+
+    return response;
+  }
+
+  @Get('db')
+  async getDbList(): Promise<ResponseInterface> {
+    const data = await this.catalogService.getDbList();
+
+    const response: ResponseInterface = { message: 'success', data };
 
     return response;
   }

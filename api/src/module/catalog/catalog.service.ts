@@ -69,8 +69,9 @@ export class CatalogService {
       const finalTableRows = await this.handleTableRows(tableRows);
       const finalMasterRows = await this.handleMasterRows(tableRows, masterRows);
       // firebase에 저장
+      const dbDataSize: number = await this.catalogRepository.getDatabaseDataSize(dbInfo.dbName, connection);
       await this.saveTableRowsInFirebase(finalTableRows);
-      await this.saveMasterRowsInFirebase(finalMasterRows);
+      await this.saveMasterRowsInFirebase(finalMasterRows, dbDataSize);
       // 캐싱
     } catch (err) {
       this.logger.error(err);
@@ -114,6 +115,7 @@ export class CatalogService {
           TABLE_COMMENT: masterRow.TABLE_COMMENT,
           TABLE_DESCRIPTION: '',
           TABLE_SHEET: '',
+          DATA_SIZE: Number(masterRow.DATA_SIZE),
         };
       }),
     );
@@ -157,10 +159,10 @@ export class CatalogService {
     );
   }
 
-  private async saveMasterRowsInFirebase(masterRows: any) {
+  private async saveMasterRowsInFirebase(masterRows: any, dbDataSize: number) {
     const mainCollection = 'masterCatalog';
     const schema = masterRows[0].TABLE_SCHEMA;
-    await this.firebaseService.setDocument(mainCollection, schema, { updatedAt: new Date() });
+    await this.firebaseService.setDocument(mainCollection, schema, { dbDataSize, updatedAt: new Date() });
 
     const dbDocRef = await this.firebaseService.getDocRef(mainCollection, schema);
     await Promise.all(
@@ -324,8 +326,9 @@ export class CatalogService {
       const finalTableRows = await this.updateTableRows(tableRows);
       const finalMasterRows = await this.updateMasterRows(tableRows, masterRows);
       // firebase에 저장
+      const dbDataSize: number = await this.catalogRepository.getDatabaseDataSize(dbConfig.dbName, connection);
       await this.saveTableRowsInFirebase(finalTableRows);
-      await this.saveMasterRowsInFirebase(finalMasterRows);
+      await this.saveMasterRowsInFirebase(finalMasterRows, dbDataSize);
       // 캐싱
     } catch (err) {
       this.logger.error(err);
@@ -360,6 +363,7 @@ export class CatalogService {
           TABLE_COLUMNS: tableColumnCount[key] || 0,
           TABLE_COMMENT: masterRow.TABLE_COMMENT,
           TABLE_SHEET: '',
+          DATA_SIZE: Number(masterRow.DATA_SIZE),
         };
       }),
     );
@@ -407,5 +411,27 @@ export class CatalogService {
     await this.firebaseService.updateTableDescription(collection, docId, subCollection, subDocId, description);
 
     return;
+  }
+
+  async getDbList() {
+    const mainCollection = 'masterCatalog';
+    const snapshot = await this.firebaseService.getCollectonData(mainCollection);
+    const promises = snapshot.docs.map(async (doc) => {
+      const docName = doc.id;
+      const lastUpdate = doc.data().updatedAt.toDate();
+      const size = doc.data().dbDataSize;
+      const tablesRef = doc.ref.collection('tables');
+      const tablesSnapshot = await tablesRef.get();
+
+      return {
+        dbName: docName,
+        size,
+        lastUpdate,
+        tables: tablesSnapshot.size,
+      };
+    });
+    const result = await Promise.all(promises);
+
+    return result;
   }
 }
