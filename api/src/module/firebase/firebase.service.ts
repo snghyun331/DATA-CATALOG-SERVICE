@@ -70,6 +70,18 @@ export class FirebaseService {
     return;
   }
 
+  async setSubCollectionData(
+    mainCol: string,
+    mainDoc: string,
+    subCol: string,
+    subDoc: string,
+    data: any,
+  ): Promise<void> {
+    await this.firestore.collection(mainCol).doc(mainDoc).collection(subCol).doc(subDoc).set(data, { merge: true });
+
+    return;
+  }
+
   async updateColumnNote(
     collection: string,
     docId: string,

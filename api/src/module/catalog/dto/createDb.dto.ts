@@ -35,4 +35,8 @@ export class CreateDbDto {
   @ApiProperty({ type: String, description: 'DB Name', example: 'cj2023', required: true })
   @IsString()
   dbName: string;
+
+  @ApiProperty({ type: String, description: 'DB Tag', example: 'backup', required: true })
+  @IsString()
+  dbTag: string;
 }

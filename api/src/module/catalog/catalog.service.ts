@@ -71,7 +71,13 @@ export class CatalogService {
       // firebase에 저장
       const dbDataSize: number = await this.catalogRepository.getDatabaseDataSize(dbInfo.dbName, connection);
       await this.saveTableRowsInFirebase(finalTableRows);
-      await this.saveMasterRowsInFirebase(finalMasterRows, dbDataSize);
+      await this.saveMasterRowsInFirebase(finalMasterRows);
+      const dbName = dbInfo.dbName;
+      const lastUpdated = new Date();
+      const dbTag = dto.dbTag;
+      const tableList = finalMasterRows.map((masterRow) => masterRow.TABLE_NAME);
+      const totalRows = finalMasterRows.reduce((sum, item) => sum + item.TABLE_ROWS, 0);
+      await this.saveDatabaseInfo(dbName, dbDataSize, lastUpdated, tableList, totalRows, dbTag);
       // 캐싱
     } catch (err) {
       this.logger.error(err);
@@ -146,32 +152,64 @@ export class CatalogService {
 
   private async saveTableRowsInFirebase(tableRows: any) {
     const mainCollection = 'tableCatalog';
-    const schema = tableRows[0].TABLE_SCHEMA;
-    await this.firebaseService.setDocument(mainCollection, schema, { updatedAt: new Date() });
+    const mainDocument = tableRows[0].TABLE_SCHEMA;
 
-    const dbDocRef = await this.firebaseService.getDocRef(mainCollection, schema);
     await Promise.all(
       tableRows.map(async (tableRow: any) => {
         const subCollection = tableRow.TABLE_NAME;
-        const subDocId = tableRow.COLUMN_NAME;
-        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, subDocId, tableRow);
+        const subDocument = tableRow.COLUMN_NAME;
+        await this.firebaseService.setSubCollectionData(
+          mainCollection,
+          mainDocument,
+          subCollection,
+          subDocument,
+          tableRow,
+        );
       }),
     );
   }
 
-  private async saveMasterRowsInFirebase(masterRows: any, dbDataSize: number) {
+  private async saveMasterRowsInFirebase(masterRows: any) {
     const mainCollection = 'masterCatalog';
-    const schema = masterRows[0].TABLE_SCHEMA;
-    await this.firebaseService.setDocument(mainCollection, schema, { dbDataSize, updatedAt: new Date() });
+    const mainDocument = masterRows[0].TABLE_SCHEMA;
 
-    const dbDocRef = await this.firebaseService.getDocRef(mainCollection, schema);
     await Promise.all(
       masterRows.map(async (masterRow: any) => {
         const subCollection = 'tables';
-        const subDocId = masterRow.TABLE_NAME;
-        await this.firebaseService.saveDocumentUsingRef(dbDocRef, subCollection, subDocId, masterRow);
+        const subDocument = masterRow.TABLE_NAME;
+        await this.firebaseService.setSubCollectionData(
+          mainCollection,
+          mainDocument,
+          subCollection,
+          subDocument,
+          masterRow,
+        );
       }),
     );
+  }
+
+  private async saveDatabaseInfo(
+    dbName: string,
+    dbSize: number,
+    lastUpdated: Date,
+    tableList: string[],
+    totalRows: number,
+    dbTag?: string,
+  ) {
+    const mainCollection = 'database';
+    const mainDocument = dbName;
+    const data: any = {
+      tableList,
+      dbSize,
+      totalRows,
+      lastUpdated,
+    };
+
+    if (dbTag) {
+      data.dbTag = dbTag;
+    }
+
+    await this.firebaseService.setDocument(mainCollection, mainDocument, data);
   }
 
   async detectChanges(companyCode: string) {
@@ -328,7 +366,12 @@ export class CatalogService {
       // firebase에 저장
       const dbDataSize: number = await this.catalogRepository.getDatabaseDataSize(dbConfig.dbName, connection);
       await this.saveTableRowsInFirebase(finalTableRows);
-      await this.saveMasterRowsInFirebase(finalMasterRows, dbDataSize);
+      await this.saveMasterRowsInFirebase(finalMasterRows);
+      const dbName = dbConfig.dbName;
+      const lastUpdated = new Date();
+      const tableList = finalMasterRows.map((masterRow) => masterRow.TABLE_NAME);
+      const totalRows = finalMasterRows.reduce((sum, item) => sum + item.TABLE_ROWS, 0);
+      await this.saveDatabaseInfo(dbName, dbDataSize, lastUpdated, tableList, totalRows);
       // 캐싱
     } catch (err) {
       this.logger.error(err);
