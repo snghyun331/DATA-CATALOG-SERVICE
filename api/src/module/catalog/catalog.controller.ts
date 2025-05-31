@@ -5,7 +5,7 @@ import { CreateDbDto } from './dto/createDb.dto';
 import { UpdateColumnNoteDto } from './dto/updateColumnNote.dto';
 import { UpdateTableDescription } from './dto/updateTableDescription.dto';
 
-@Controller('api/catalog')
+@Controller('api/v1/databases')
 export class CatalogController {
   constructor(private readonly catalogService: CatalogService) {}
 

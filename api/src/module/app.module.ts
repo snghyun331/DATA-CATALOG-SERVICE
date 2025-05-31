@@ -8,15 +8,19 @@ import { RedisModule } from '@nestjs-modules/ioredis';
 import { WINSTON_CONFIG } from '../config/logger.config';
 import { CatalogModule } from './catalog/catalog.module';
 import { CompanyModule } from './company/company.module';
+import { FirebaseModule } from './firebase/firebase.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     WinstonModule.forRoot(WINSTON_CONFIG),
     RedisModule.forRootAsync(REDIS_CONFIG),
+    FirebaseModule,
     SchedulerModule,
     CatalogModule,
     CompanyModule,
+    DashboardModule,
   ],
 })
 export class AppModule implements NestModule {

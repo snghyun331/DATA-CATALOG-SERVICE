@@ -52,6 +52,12 @@ export class FirebaseService {
     return data;
   }
 
+  async getMainDocData(mainCol: string, mainDoc: string) {
+    const data = await this.firestore.collection(mainCol).doc(mainDoc).get();
+
+    return data;
+  }
+
   async getDocRef(collection: string, docId: string) {
     const ref = this.firestore.collection(collection).doc(docId);
 
