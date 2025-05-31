@@ -16,12 +16,11 @@ export class CatalogService {
     private readonly firebaseService: FirebaseService,
   ) {}
 
-  async getMasterCatalog(companyCode: string) {
-    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+  async getMasterCatalog(dbName: string) {
     const mainCollection = 'masterCatalog';
+    const mainDocument = dbName;
     const subCollection = 'tables';
-    const schema = dbConfig.dbName;
-    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, schema, subCollection);
+    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, mainDocument, subCollection);
     const result = snapshot.docs.map((doc) => doc.data());
 
     return result;
@@ -474,6 +473,23 @@ export class CatalogService {
       };
     });
     const result = await Promise.all(promises);
+
+    return result;
+  }
+
+  async getDbStats(dbName) {
+    const mainCollection = 'database';
+    const mainDocument = dbName;
+    const snapshot = await this.firebaseService.getMainDocData(mainCollection, mainDocument);
+    const data = snapshot.data();
+    const result = {
+      dbName,
+      lastUpdated: data.lastUpdated.toDate(),
+      dbSize: data.dbSize,
+      tableCount: data.tableList.length,
+      rows: data.totalRows,
+      dbTag: data.dbTag,
+    };
 
     return result;
   }

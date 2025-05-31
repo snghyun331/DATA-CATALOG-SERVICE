@@ -27,9 +27,18 @@ export class CatalogController {
     return response;
   }
 
-  @Get(':companyCode/master')
-  async getMasterCatalog(@Param('companyCode') companyCode: string): Promise<ResponseInterface> {
-    const data = await this.catalogService.getMasterCatalog(companyCode);
+  @Get(':dbName/stats')
+  async getDBStats(@Param('dbName') dbName: string): Promise<ResponseInterface> {
+    const data = await this.catalogService.getDbStats(dbName);
+
+    const response: ResponseInterface = { message: 'success', data };
+
+    return response;
+  }
+
+  @Get(':dbName')
+  async getMasterCatalog(@Param('dbName') dbName: string): Promise<ResponseInterface> {
+    const data = await this.catalogService.getMasterCatalog(dbName);
 
     const response = { message: 'success', data };
 

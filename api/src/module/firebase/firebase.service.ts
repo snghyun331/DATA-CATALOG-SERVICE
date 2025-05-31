@@ -41,17 +41,6 @@ export class FirebaseService {
     return data;
   }
 
-  async getSubDocData(mainCollection: string, mainDocId: string, subCollection: string, subDocId: string) {
-    const data = await this.firestore
-      .collection(mainCollection)
-      .doc(mainDocId)
-      .collection(subCollection)
-      .doc(subDocId)
-      .get();
-
-    return data;
-  }
-
   async getMainDocData(mainCol: string, mainDoc: string) {
     const data = await this.firestore.collection(mainCol).doc(mainDoc).get();
 

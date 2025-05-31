@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ResponseInterface } from '../../common/interface/response.interface';
 import { CompanyService } from './company.service';
 
-@Controller('api/company')
+@Controller('api/v1/company')
 export class CompanyController {
   constructor(private readonly companyService: CompanyService) {}
 
