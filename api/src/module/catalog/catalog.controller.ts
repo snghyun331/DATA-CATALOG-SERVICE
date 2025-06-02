@@ -45,7 +45,7 @@ export class CatalogController {
     return response;
   }
 
-  @Get(':companyCode/tables/:tableName')
+  @Get(':dbName/tables/:tableName')
   async getTableCatalog(
     @Param('companyCode') companyCode: string,
     @Param('tableName') tableName: string,

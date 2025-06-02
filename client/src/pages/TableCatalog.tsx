@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Table, Key, Link, Search, FileText, BarChart3 } from "lucide-react";
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Table, Key, Link, Search, FileText, BarChart3 } from 'lucide-react';
 
 // Types
 interface ColumnInfo {
@@ -22,114 +22,114 @@ interface TableCatalogData {
   columns: ColumnInfo[];
 }
 
-type TabType = "schema" | "stats";
+type TabType = 'schema' | 'stats';
 
 const TableCatalog: React.FC = () => {
   const { dbName, tableName } = useParams<{ dbName: string; tableName: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>("schema");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<TabType>('schema');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Mock data - ProductDB의 orders 테이블
   const getTableCatalog = (dbName: string, tableName: string): TableCatalogData | null => {
-    if (dbName === "ProductDB" && tableName === "orders") {
+    if (dbName === 'ProductDB' && tableName === 'orders') {
       return {
-        description: "Customer order records with payment and shipping information",
-        engine: "PostgreSQL",
-        totalRows: "89,340",
-        dataSize: "78.2 MB",
+        description: 'Customer order records with payment and shipping information',
+        engine: 'PostgreSQL',
+        totalRows: '89,340',
+        dataSize: '78.2 MB',
         columns: [
           {
-            name: "order_id",
-            type: "BIGINT",
+            name: 'order_id',
+            type: 'BIGINT',
             nullable: false,
             defaultValue: null,
             isPrimaryKey: true,
             isForeignKey: false,
-            description: "Unique identifier for each order",
+            description: 'Unique identifier for each order',
           },
           {
-            name: "customer_id",
-            type: "BIGINT",
+            name: 'customer_id',
+            type: 'BIGINT',
             nullable: false,
             defaultValue: null,
             isPrimaryKey: false,
             isForeignKey: true,
-            foreignKeyRef: { table: "customers", column: "customer_id" },
-            description: "Reference to customer who placed the order",
+            foreignKeyRef: { table: 'customers', column: 'customer_id' },
+            description: 'Reference to customer who placed the order',
           },
           {
-            name: "product_id",
-            type: "BIGINT",
+            name: 'product_id',
+            type: 'BIGINT',
             nullable: false,
             defaultValue: null,
             isPrimaryKey: false,
             isForeignKey: true,
-            foreignKeyRef: { table: "products", column: "product_id" },
-            description: "Reference to the ordered product",
+            foreignKeyRef: { table: 'products', column: 'product_id' },
+            description: 'Reference to the ordered product',
           },
           {
-            name: "quantity",
-            type: "INT",
+            name: 'quantity',
+            type: 'INT',
             nullable: false,
-            defaultValue: "1",
+            defaultValue: '1',
             isPrimaryKey: false,
             isForeignKey: false,
-            description: "Number of items ordered",
+            description: 'Number of items ordered',
           },
           {
-            name: "unit_price",
-            type: "DECIMAL(10,2)",
-            nullable: false,
-            defaultValue: null,
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: "Price per unit at time of order",
-          },
-          {
-            name: "total_amount",
-            type: "DECIMAL(10,2)",
+            name: 'unit_price',
+            type: 'DECIMAL(10,2)',
             nullable: false,
             defaultValue: null,
             isPrimaryKey: false,
             isForeignKey: false,
-            description: "Total order amount",
+            description: 'Price per unit at time of order',
           },
           {
-            name: "order_status",
-            type: "ENUM",
+            name: 'total_amount',
+            type: 'DECIMAL(10,2)',
+            nullable: false,
+            defaultValue: null,
+            isPrimaryKey: false,
+            isForeignKey: false,
+            description: 'Total order amount',
+          },
+          {
+            name: 'order_status',
+            type: 'ENUM',
             nullable: false,
             defaultValue: "'pending'",
             isPrimaryKey: false,
             isForeignKey: false,
-            description: "Current status of the order",
+            description: 'Current status of the order',
           },
           {
-            name: "payment_method",
-            type: "VARCHAR(50)",
+            name: 'payment_method',
+            type: 'VARCHAR(50)',
             nullable: true,
             defaultValue: null,
             isPrimaryKey: false,
             isForeignKey: false,
-            description: "Payment method used",
+            description: 'Payment method used',
           },
           {
-            name: "created_at",
-            type: "TIMESTAMP",
+            name: 'created_at',
+            type: 'TIMESTAMP',
             nullable: false,
-            defaultValue: "CURRENT_TIMESTAMP",
+            defaultValue: 'CURRENT_TIMESTAMP',
             isPrimaryKey: false,
             isForeignKey: false,
-            description: "When the order was created",
+            description: 'When the order was created',
           },
           {
-            name: "updated_at",
-            type: "TIMESTAMP",
+            name: 'updated_at',
+            type: 'TIMESTAMP',
             nullable: false,
-            defaultValue: "CURRENT_TIMESTAMP",
+            defaultValue: 'CURRENT_TIMESTAMP',
             isPrimaryKey: false,
             isForeignKey: false,
-            description: "When the order was last updated",
+            description: 'When the order was last updated',
           },
         ],
       };
@@ -161,23 +161,23 @@ const TableCatalog: React.FC = () => {
   const filteredColumns = tableCatalog.columns.filter(
     (column) =>
       column.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      column.type.toLowerCase().includes(searchTerm.toLowerCase())
+      column.type.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const getTypeColor = (type: string): string => {
-    if (type.includes("INT")) return "bg-blue-100 text-blue-800";
-    if (type.includes("VARCHAR") || type.includes("TEXT")) return "bg-green-100 text-green-800";
-    if (type.includes("DECIMAL")) return "bg-purple-100 text-purple-800";
-    if (type.includes("TIMESTAMP")) return "bg-orange-100 text-orange-800";
-    if (type.includes("ENUM")) return "bg-yellow-100 text-yellow-800";
-    return "bg-gray-100 text-gray-800";
+    if (type.includes('INT')) return 'bg-blue-100 text-blue-800';
+    if (type.includes('VARCHAR') || type.includes('TEXT')) return 'bg-green-100 text-green-800';
+    if (type.includes('DECIMAL')) return 'bg-purple-100 text-purple-800';
+    if (type.includes('TIMESTAMP')) return 'bg-orange-100 text-orange-800';
+    if (type.includes('ENUM')) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center space-x-2 text-sm text-gray-500">
-        <button onClick={() => navigate("/overview")} className="hover:text-gray-700">
+        <button onClick={() => navigate('/overview')} className="hover:text-gray-700">
           Home
         </button>
         <span>/</span>
@@ -222,22 +222,22 @@ const TableCatalog: React.FC = () => {
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             <button
-              onClick={() => setActiveTab("schema")}
+              onClick={() => setActiveTab('schema')}
               className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                activeTab === "schema"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                activeTab === 'schema'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               <FileText className="w-4 h-4" />
               <span>Schema</span>
             </button>
             <button
-              onClick={() => setActiveTab("stats")}
+              onClick={() => setActiveTab('stats')}
               className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                activeTab === "stats"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                activeTab === 'stats'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               <BarChart3 className="w-4 h-4" />
@@ -248,7 +248,7 @@ const TableCatalog: React.FC = () => {
 
         <div className="p-6">
           {/* Schema Tab */}
-          {activeTab === "schema" && (
+          {activeTab === 'schema' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Columns ({tableCatalog.columns.length})</h3>
@@ -300,7 +300,7 @@ const TableCatalog: React.FC = () => {
           )}
 
           {/* Statistics Tab */}
-          {activeTab === "stats" && (
+          {activeTab === 'stats' && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-900">Table Statistics</h3>
 

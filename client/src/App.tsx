@@ -1,10 +1,10 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
-import Overview from "./pages/Overview";
-import MasterSheet from "./pages/MasterSheet";
-import Tables from "./pages/Tables";
-import TableCatalog from "./pages/TableCatalog";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import Overview from './pages/Overview';
+import MasterSheet from './pages/MasterSheet';
+import Tables from './pages/Tables';
+import TableCatalog from './pages/TableCatalog';
 
 // Types
 export interface Database {
@@ -12,15 +12,15 @@ export interface Database {
   tables: number;
   size: string;
   lastUpdate: string;
-  status: "active" | "maintenance";
+  status: 'active' | 'maintenance';
 }
 
 // Mock data - 실제로는 Context나 상태 관리 라이브러리에서 관리
 export const databases: Database[] = [
-  { name: "UserDB", tables: 15, size: "2.3GB", lastUpdate: "2 mins ago", status: "active" },
-  { name: "ProductDB", tables: 8, size: "1.1GB", lastUpdate: "5 mins ago", status: "active" },
-  { name: "OrderDB", tables: 12, size: "3.7GB", lastUpdate: "1 hour ago", status: "active" },
-  { name: "AnalyticsDB", tables: 6, size: "850MB", lastUpdate: "3 hours ago", status: "maintenance" },
+  { name: 'UserDB', tables: 15, size: '2.3GB', lastUpdate: '2 mins ago', status: 'active' },
+  { name: 'ProductDB', tables: 8, size: '1.1GB', lastUpdate: '5 mins ago', status: 'active' },
+  { name: 'OrderDB', tables: 12, size: '3.7GB', lastUpdate: '1 hour ago', status: 'active' },
+  { name: 'AnalyticsDB', tables: 6, size: '850MB', lastUpdate: '3 hours ago', status: 'maintenance' },
 ];
 
 const App: React.FC = () => {

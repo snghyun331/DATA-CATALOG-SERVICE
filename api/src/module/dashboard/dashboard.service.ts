@@ -29,11 +29,12 @@ export class DashboardService {
     const dbList = dbStats.map((stats) => stats.dbName);
     const dbCount = dbList.length;
     const totalTableCount = dbStats.reduce((sum, item) => sum + item.tableCount, 0);
+    const totalRows = dbStats.reduce((sum, item) => sum + item.totalRows, 0);
     // 가장 최신 업데이트 시간
     const latestUpdated = dbStats.reduce((latest, current) => {
       return new Date(current.lastUpdated) > new Date(latest.lastUpdated) ? current : latest;
     }).lastUpdated;
-    const totalStats = { dbList, dbCount, totalTableCount, latestUpdated };
+    const totalStats = { dbList, dbCount, totalTableCount, totalRows, latestUpdated };
 
     return { totalStats, dbStats };
   }
