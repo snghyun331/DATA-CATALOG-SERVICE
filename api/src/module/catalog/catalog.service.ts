@@ -26,11 +26,9 @@ export class CatalogService {
     return result;
   }
 
-  async getTableCatalog(companyCode: string, tableName: string) {
-    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+  async getTableCatalog(dbName: string, tableName: string) {
     const mainCollection = 'tableCatalog';
-    const schema = dbConfig.dbName;
-    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, schema, tableName);
+    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, dbName, tableName);
     const result = snapshot.docs.map((doc) => doc.data());
 
     return result;
