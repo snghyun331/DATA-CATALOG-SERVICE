@@ -45,12 +45,24 @@ export class CatalogController {
     return response;
   }
 
-  @Get(':dbName/tables/:tableName')
-  async getTableCatalog(
-    @Param('companyCode') companyCode: string,
+  @Get(':dbName/tables/:tableName/stats')
+  async getTableStats(
+    @Param('dbName') dbName: string,
     @Param('tableName') tableName: string,
   ): Promise<ResponseInterface> {
-    const data = await this.catalogService.getTableCatalog(companyCode, tableName);
+    const data = await this.catalogService.getTableStats(dbName, tableName);
+
+    const response = { message: 'success', data };
+
+    return response;
+  }
+
+  @Get(':dbName/tables/:tableName')
+  async getTableCatalog(
+    @Param('dbName') dbName: string,
+    @Param('tableName') tableName: string,
+  ): Promise<ResponseInterface> {
+    const data = await this.catalogService.getTableCatalog(dbName, tableName);
 
     const response = { message: 'success', data };
 

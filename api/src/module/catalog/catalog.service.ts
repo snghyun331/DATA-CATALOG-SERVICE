@@ -493,4 +493,20 @@ export class CatalogService {
 
     return result;
   }
+
+  async getTableStats(dbName: string, tableName: string) {
+    const mainCollection = 'masterCatalog';
+    const mainDocument = dbName;
+    const subCollection = 'tables';
+    const snapshot = await this.firebaseService.getSubCollectionData(mainCollection, mainDocument, subCollection);
+    const allTables = snapshot.docs.map((doc) => doc.data());
+    const table = allTables.find((item) => item.TABLE_NAME === tableName);
+    const result = {
+      totalColumns: table.TABLE_COLUMNS,
+      totalRecords: table.TABLE_ROWS,
+      tableSize: table.DATA_SIZE,
+    };
+
+    return result;
+  }
 }
