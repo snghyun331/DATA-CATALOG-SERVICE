@@ -28,3 +28,16 @@ export const useAddDatabase = () => {
     retry: false,
   });
 };
+
+export const useTableDescription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ dbName, tableName, description }: { dbName: string; tableName: string; description: string }) =>
+      DatabaseApi.updateTableDescription(dbName, tableName, description),
+    onSuccess: (_, variables) => {
+      // 성공시 해당 DB의 테이블 목록 다시 가져오기
+      queryClient.invalidateQueries({ queryKey: ['database-catalog', variables.dbName] });
+    },
+  });
+};

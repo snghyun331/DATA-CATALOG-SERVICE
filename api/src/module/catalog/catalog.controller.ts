@@ -3,7 +3,7 @@ import { CatalogService } from './catalog.service';
 import { ResponseInterface } from '../../common/interface/response.interface';
 import { CreateDbDto } from './dto/createDb.dto';
 import { UpdateColumnNoteDto } from './dto/updateColumnNote.dto';
-import { UpdateTableDescription } from './dto/updateTableDescription.dto';
+import { UpdateTableDescriptionDto } from './dto/updateTableDescription.dto';
 
 @Controller('api/v1/databases')
 export class CatalogController {
@@ -87,27 +87,28 @@ export class CatalogController {
     return response;
   }
 
-  @Patch(':companyCode/tables/:tableName/:columnName')
-  async updateColumnNote(
-    @Param('companyCode') companyCode: string,
+  @Patch(':dbName/tables/:tableName/description')
+  async updateTableDescription(
+    @Param('dbName') dbName: string,
     @Param('tableName') tableName: string,
-    @Param('columnName') columnName: string,
-    @Body() { note }: UpdateColumnNoteDto,
+    @Body() { description }: UpdateTableDescriptionDto,
   ): Promise<ResponseInterface> {
-    await this.catalogService.updateColumnNote(companyCode, tableName, columnName, note);
+    console.log(dbName);
+    await this.catalogService.updateTableDescription(dbName, tableName, description);
 
     const response: ResponseInterface = { message: 'success' };
 
     return response;
   }
 
-  @Patch(':companyCode/master/:tableName')
-  async updateTableDescription(
-    @Param('companyCode') companyCode: string,
+  @Patch(':dbName/tables/:tableName/:columnName')
+  async updateColumnNote(
+    @Param('dbName') dbName: string,
     @Param('tableName') tableName: string,
-    @Body() { description }: UpdateTableDescription,
+    @Param('columnName') columnName: string,
+    @Body() { note }: UpdateColumnNoteDto,
   ): Promise<ResponseInterface> {
-    await this.catalogService.updateTableDescription(companyCode, tableName, description);
+    await this.catalogService.updateColumnNote(dbName, tableName, columnName, note);
 
     const response: ResponseInterface = { message: 'success' };
 

@@ -1,7 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Table, Eye, Edit3, MoreHorizontal } from 'lucide-react';
-import { useDatabaseCatalog, useDatabaseStats } from '../hooks/useDatabase.query';
+import { useDatabaseCatalog, useDatabaseStats, useTableDescription } from '../hooks/useDatabase.query';
+import EditableDescription from './EditDescription';
 
 interface TableData {
   tableName: string;
@@ -9,7 +10,7 @@ interface TableData {
   records: string;
   size: string;
   description: string;
-  note: string;
+  comment: string;
 }
 
 const MasterSheet: React.FC = () => {
@@ -19,6 +20,7 @@ const MasterSheet: React.FC = () => {
   // API 호출
   const { data: databaseStats, isLoading: statsLoading, error: statsError } = useDatabaseStats(dbName!);
   const { data: tablesData, isLoading: tablesLoading, error: tablesError } = useDatabaseCatalog(dbName!);
+  const updateDescriptionMutation = useTableDescription();
 
   // 로딩 상태
   if (statsLoading || tablesLoading) {
@@ -28,6 +30,14 @@ const MasterSheet: React.FC = () => {
       </div>
     );
   }
+
+  const handleUpdateDescription = (tableName: string, newDescription: string) => {
+    updateDescriptionMutation.mutate({
+      dbName: dbName!,
+      tableName,
+      description: newDescription,
+    });
+  };
 
   const dbStats = databaseStats?.data;
   const rawTablesData = tablesData?.data || [];
@@ -39,7 +49,7 @@ const MasterSheet: React.FC = () => {
     records: table.TABLE_ROWS,
     size: `${table.DATA_SIZE}MB`,
     description: table.TABLE_DESCRIPTION,
-    note: table.TABLE_COMMENT,
+    comment: table.TABLE_COMMENT,
   }));
 
   const handleBack = (): void => {
@@ -154,7 +164,6 @@ const MasterSheet: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Tables ({masterSheetData.length})</h3>
         </div>
-
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -170,9 +179,11 @@ const MasterSheet: React.FC = () => {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Comment
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -191,39 +202,14 @@ const MasterSheet: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.columns}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.records}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.size}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.description}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.note}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        className="text-blue-600 hover:text-blue-800 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTableClick(table.tableName);
-                        }}
-                        title="View Table Catalog"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        title="Edit Table"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        title="More Options"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
+                    <EditableDescription
+                      value={table.description}
+                      onSave={(newDescription) => handleUpdateDescription(table.tableName, newDescription)}
+                      isLoading={updateDescriptionMutation.isPending}
+                      placeholder=""
+                    />
                   </td>
                 </tr>
               ))}

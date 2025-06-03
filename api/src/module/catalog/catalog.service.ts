@@ -431,10 +431,10 @@ export class CatalogService {
     return finalTableRows;
   }
 
-  async updateColumnNote(companyCode: string, tableName: string, columnName: string, note: string): Promise<void> {
-    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+  async updateColumnNote(dbName: string, tableName: string, columnName: string, note: string): Promise<void> {
+    // const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
     const collection = 'tableCatalog';
-    const docId = dbConfig.dbName;
+    const docId = dbName;
     const subCollection = tableName;
     const subDocId = columnName;
     await this.firebaseService.updateColumnNote(collection, docId, subCollection, subDocId, note);
@@ -442,13 +442,18 @@ export class CatalogService {
     return;
   }
 
-  async updateTableDescription(companyCode: string, tableName: string, description: string) {
-    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
-    const collection = 'masterCatalog';
-    const docId = dbConfig.dbName;
+  async updateTableDescription(dbName: string, tableName: string, description: string) {
+    const mainCollection = 'masterCatalog';
+    const mainDocument = dbName;
     const subCollection = 'tables';
-    const subDocId = tableName;
-    await this.firebaseService.updateTableDescription(collection, docId, subCollection, subDocId, description);
+    const subDocument = tableName;
+    await this.firebaseService.updateTableDescription(
+      mainCollection,
+      mainDocument,
+      subCollection,
+      subDocument,
+      description,
+    );
 
     return;
   }
