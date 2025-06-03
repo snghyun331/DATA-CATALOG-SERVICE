@@ -1,352 +1,289 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Key, Link, Search, FileText, BarChart3 } from 'lucide-react';
-
-// Types
-interface ColumnInfo {
-  name: string;
-  type: string;
-  nullable: boolean;
-  defaultValue: string | null;
-  isPrimaryKey: boolean;
-  isForeignKey: boolean;
-  foreignKeyRef?: { table: string; column: string };
-  description?: string;
-}
-
-interface TableCatalogData {
-  description: string;
-  engine: string;
-  totalRows: string;
-  dataSize: string;
-  columns: ColumnInfo[];
-}
-
-type TabType = 'schema' | 'stats';
+import { Database, Table, Key, FileText, Info, ArrowLeft } from 'lucide-react';
+import { useTableCatalog, useTableStats } from '../hooks/useTable.query';
 
 const TableCatalog: React.FC = () => {
   const { dbName, tableName } = useParams<{ dbName: string; tableName: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('schema');
-  const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data - ProductDB의 orders 테이블
-  const getTableCatalog = (dbName: string, tableName: string): TableCatalogData | null => {
-    if (dbName === 'ProductDB' && tableName === 'orders') {
-      return {
-        description: 'Customer order records with payment and shipping information',
-        engine: 'PostgreSQL',
-        totalRows: '89,340',
-        dataSize: '78.2 MB',
-        columns: [
-          {
-            name: 'order_id',
-            type: 'BIGINT',
-            nullable: false,
-            defaultValue: null,
-            isPrimaryKey: true,
-            isForeignKey: false,
-            description: 'Unique identifier for each order',
-          },
-          {
-            name: 'customer_id',
-            type: 'BIGINT',
-            nullable: false,
-            defaultValue: null,
-            isPrimaryKey: false,
-            isForeignKey: true,
-            foreignKeyRef: { table: 'customers', column: 'customer_id' },
-            description: 'Reference to customer who placed the order',
-          },
-          {
-            name: 'product_id',
-            type: 'BIGINT',
-            nullable: false,
-            defaultValue: null,
-            isPrimaryKey: false,
-            isForeignKey: true,
-            foreignKeyRef: { table: 'products', column: 'product_id' },
-            description: 'Reference to the ordered product',
-          },
-          {
-            name: 'quantity',
-            type: 'INT',
-            nullable: false,
-            defaultValue: '1',
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'Number of items ordered',
-          },
-          {
-            name: 'unit_price',
-            type: 'DECIMAL(10,2)',
-            nullable: false,
-            defaultValue: null,
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'Price per unit at time of order',
-          },
-          {
-            name: 'total_amount',
-            type: 'DECIMAL(10,2)',
-            nullable: false,
-            defaultValue: null,
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'Total order amount',
-          },
-          {
-            name: 'order_status',
-            type: 'ENUM',
-            nullable: false,
-            defaultValue: "'pending'",
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'Current status of the order',
-          },
-          {
-            name: 'payment_method',
-            type: 'VARCHAR(50)',
-            nullable: true,
-            defaultValue: null,
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'Payment method used',
-          },
-          {
-            name: 'created_at',
-            type: 'TIMESTAMP',
-            nullable: false,
-            defaultValue: 'CURRENT_TIMESTAMP',
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'When the order was created',
-          },
-          {
-            name: 'updated_at',
-            type: 'TIMESTAMP',
-            nullable: false,
-            defaultValue: 'CURRENT_TIMESTAMP',
-            isPrimaryKey: false,
-            isForeignKey: false,
-            description: 'When the order was last updated',
-          },
-        ],
-      };
-    }
-    return null;
-  };
+  // API 호출
+  const { data: tableStats, isLoading: statsLoading, error: statsError } = useTableStats(dbName!, tableName!);
+  const { data: columnsData, isLoading: columnsLoading, error: columnsError } = useTableCatalog(dbName!, tableName!);
 
-  const tableCatalog = getTableCatalog(dbName!, tableName!);
-
-  if (!tableCatalog) {
+  // 로딩 상태
+  if (statsLoading || columnsLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <Table className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Table not found</h3>
-        <p className="mt-1 text-sm text-gray-500">
-          The table "{tableName}" in database "{dbName}" could not be found.
-        </p>
-        <button
-          onClick={() => navigate(`/database/${dbName}`)}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-        >
-          Back to {dbName}
-        </button>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading table information...</div>
       </div>
     );
   }
 
-  // Filter columns
-  const filteredColumns = tableCatalog.columns.filter(
-    (column) =>
-      column.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      column.type.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  // 에러 상태
+  if (statsError || columnsError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-center">
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading table</h3>
+          <p className="mt-1 text-sm text-red-500">
+            {statsError?.message || columnsError?.message || 'Failed to load table information'}
+          </p>
+          <div className="mt-6">
+            <button
+              onClick={() => navigate(`/database/${dbName}`)}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Back to Database
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const getTypeColor = (type: string): string => {
-    if (type.includes('INT')) return 'bg-blue-100 text-blue-800';
-    if (type.includes('VARCHAR') || type.includes('TEXT')) return 'bg-green-100 text-green-800';
-    if (type.includes('DECIMAL')) return 'bg-purple-100 text-purple-800';
-    if (type.includes('TIMESTAMP')) return 'bg-orange-100 text-orange-800';
-    if (type.includes('ENUM')) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-gray-100 text-gray-800';
+  // 데이터가 없는 경우
+  if (!tableStats?.data || !columnsData?.data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-center">
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Table not found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            The table "{tableName}" could not be found in database "{dbName}".
+          </p>
+          <div className="mt-6">
+            <button
+              onClick={() => navigate(`/database/${dbName}`)}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Back to Database
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = tableStats.data;
+  const columns = columnsData.data;
+
+  // 컬럼 통계 계산
+  const columnStats = {
+    totalColumns: stats.totalColumns,
+    totalRecords: stats.totalRecords,
+    tableSize: `${stats.tableSize}MB`,
+    primaryKeys: columns.filter((col: any) => col.COLUMN_KEY === 'PRI').length,
+    nullableColumns: columns.filter((col: any) => col.IS_NULLABLE === 'YES').length,
+    requiredColumns: columns.filter((col: any) => col.IS_NULLABLE === 'NO').length,
+  };
+
+  const getKeyIcon = (columnKey: string) => {
+    switch (columnKey) {
+      case 'PRI':
+        return <Key className="w-4 h-4 text-yellow-500" title="Primary Key" />;
+      case 'UNI':
+        return <Key className="w-4 h-4 text-blue-500" title="Unique Key" />;
+      case 'MUL':
+        return <Key className="w-4 h-4 text-green-500" title="Index" />;
+      default:
+        return null;
+    }
+  };
+
+  const getNullableColor = (isNullable: string) => {
+    return isNullable === 'YES' ? 'text-gray-500' : 'text-blue-600 font-medium';
+  };
+
+  const handleBack = () => {
+    navigate(`/database/${dbName}`);
   };
 
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center space-x-2 text-sm text-gray-500">
-        <button onClick={() => navigate('/overview')} className="hover:text-gray-700">
-          Home
-        </button>
-        <span>/</span>
-        <button onClick={() => navigate(`/database/${dbName}`)} className="hover:text-gray-700">
-          {dbName}
-        </button>
-        <span>/</span>
-        <span className="text-gray-900 font-medium">{tableName}</span>
+      <nav className="flex" aria-label="Breadcrumb">
+        <ol className="flex items-center space-x-4">
+          <li>
+            <div>
+              <button onClick={() => navigate('/overview')} className="text-gray-400 hover:text-gray-500">
+                <svg className="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                <span className="sr-only">Home</span>
+              </button>
+            </div>
+          </li>
+          <li>
+            <div className="flex items-center">
+              <svg className="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <button
+                onClick={() => navigate('/overview')}
+                className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+              >
+                Databases
+              </button>
+            </div>
+          </li>
+          <li>
+            <div className="flex items-center">
+              <svg className="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <button
+                onClick={() => navigate(`/database/${dbName}`)}
+                className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+              >
+                {dbName}
+              </button>
+            </div>
+          </li>
+          <li>
+            <div className="flex items-center">
+              <svg className="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="ml-4 text-sm font-medium text-gray-900">{tableName}</span>
+            </div>
+          </li>
+        </ol>
       </nav>
 
       {/* Table Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-            <Table className="w-6 h-6 text-green-600" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <Table className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{tableName}</h1>
+              <p className="text-sm text-gray-500">Table Schema</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{tableName}</h1>
-            <p className="text-sm text-gray-500">{tableCatalog.description}</p>
-          </div>
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to {dbName}
+          </button>
         </div>
 
-        {/* Quick Info */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm text-gray-500">Engine</div>
-            <div className="text-lg font-semibold text-gray-900">{tableCatalog.engine}</div>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-blue-50 rounded-lg p-4">
+            <div className="flex items-center">
+              <FileText className="w-5 h-5 text-blue-600 mr-2" />
+              <div>
+                <div className="text-sm text-blue-600 mb-1">Total Columns</div>
+                <div className="text-2xl font-bold text-blue-900">{columnStats.totalColumns}</div>
+              </div>
+            </div>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm text-gray-500">Total Rows</div>
-            <div className="text-lg font-semibold text-gray-900">{tableCatalog.totalRows}</div>
+
+          <div className="bg-green-50 rounded-lg p-4">
+            <div className="flex items-center">
+              <Database className="w-5 h-5 text-green-600 mr-2" />
+              <div>
+                <div className="text-sm text-green-600 mb-1">Total Records</div>
+                <div className="text-2xl font-bold text-green-900">{columnStats.totalRecords.toLocaleString()}</div>
+              </div>
+            </div>
           </div>
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="text-sm text-gray-500">Data Size</div>
-            <div className="text-lg font-semibold text-gray-900">{tableCatalog.dataSize}</div>
+
+          <div className="bg-purple-50 rounded-lg p-4">
+            <div className="flex items-center">
+              <Info className="w-5 h-5 text-purple-600 mr-2" />
+              <div>
+                <div className="text-sm text-purple-600 mb-1">Table Size</div>
+                <div className="text-2xl font-bold text-purple-900">{columnStats.tableSize}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-yellow-50 rounded-lg p-4">
+            <div className="flex items-center">
+              <Key className="w-5 h-5 text-yellow-600 mr-2" />
+              <div>
+                <div className="text-sm text-yellow-600 mb-1">Primary Keys</div>
+                <div className="text-2xl font-bold text-yellow-900">{columnStats.primaryKeys}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Columns Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            <button
-              onClick={() => setActiveTab('schema')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                activeTab === 'schema'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Schema</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('stats')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                activeTab === 'stats'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Statistics</span>
-            </button>
-          </nav>
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Columns ({columnStats.totalColumns})</h2>
         </div>
 
-        <div className="p-6">
-          {/* Schema Tab */}
-          {activeTab === 'schema' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-gray-900">Columns ({tableCatalog.columns.length})</h3>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    placeholder="Search columns..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {filteredColumns.map((column, index) => (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-3">
-                        <span className="font-medium text-gray-900">{column.name}</span>
-                        {column.isPrimaryKey && <Key className="w-4 h-4 text-yellow-500" title="Primary Key" />}
-                        {column.isForeignKey && <Link className="w-4 h-4 text-blue-500" title="Foreign Key" />}
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(column.type)}`}>
-                          {column.type}
-                        </span>
-                        {!column.nullable && (
-                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                            NOT NULL
-                          </span>
-                        )}
-                      </div>
-                      {column.defaultValue && (
-                        <span className="text-sm text-gray-500">Default: {column.defaultValue}</span>
-                      )}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Column Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nullable
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Default
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Comment
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {columns.map((column: any, index: number) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <FileText className="mr-3 text-blue-500" size={16} />
+                      <span className="font-medium text-gray-900">{column.COLUMN_NAME}</span>
                     </div>
-
-                    {column.description && <p className="text-sm text-gray-600 mb-2">{column.description}</p>}
-
-                    {column.isForeignKey && column.foreignKeyRef && (
-                      <div className="text-sm text-blue-600">
-                        → References {column.foreignKeyRef.table}.{column.foreignKeyRef.column}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Statistics Tab */}
-          {activeTab === 'stats' && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-medium text-gray-900">Table Statistics</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-blue-50 rounded-lg p-6">
-                  <div className="text-sm font-medium text-blue-600 mb-2">Basic Information</div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Total Rows:</span>
-                      <span className="text-sm font-medium text-gray-900">{tableCatalog.totalRows}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                      {column.COLUMN_TYPE}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      {getKeyIcon(column.COLUMN_KEY)}
+                      {column.COLUMN_KEY && <span className="ml-2 text-sm text-gray-600">{column.COLUMN_KEY}</span>}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Data Size:</span>
-                      <span className="text-sm font-medium text-gray-900">{tableCatalog.dataSize}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Engine:</span>
-                      <span className="text-sm font-medium text-gray-900">{tableCatalog.engine}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-green-50 rounded-lg p-6">
-                  <div className="text-sm font-medium text-green-600 mb-2">Column Summary</div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Total Columns:</span>
-                      <span className="text-sm font-medium text-gray-900">{tableCatalog.columns.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Primary Keys:</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {tableCatalog.columns.filter((col) => col.isPrimaryKey).length}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Foreign Keys:</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {tableCatalog.columns.filter((col) => col.isForeignKey).length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`text-sm ${getNullableColor(column.IS_NULLABLE)}`}>{column.IS_NULLABLE}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{column.COLUMN_DEFAULT || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{column.COLUMN_COMMENT || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{column.COLUMN_NOTE || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
