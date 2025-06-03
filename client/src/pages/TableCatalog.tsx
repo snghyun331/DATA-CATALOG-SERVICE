@@ -1,7 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Database, Table, Key, FileText, Info, ArrowLeft } from 'lucide-react';
-import { useTableCatalog, useTableStats } from '../hooks/useTable.query';
+import { useTableCatalog, useTableStats, useUpdateColumnNote } from '../hooks/useTable.query';
+import EditableDescription from './EditDescription';
 
 const TableCatalog: React.FC = () => {
   const { dbName, tableName } = useParams<{ dbName: string; tableName: string }>();
@@ -10,6 +11,7 @@ const TableCatalog: React.FC = () => {
   // API 호출
   const { data: tableStats, isLoading: statsLoading, error: statsError } = useTableStats(dbName!, tableName!);
   const { data: columnsData, isLoading: columnsLoading, error: columnsError } = useTableCatalog(dbName!, tableName!);
+  const updateColumnNoteMutation = useUpdateColumnNote();
 
   // 로딩 상태
   if (statsLoading || columnsLoading) {
@@ -63,6 +65,15 @@ const TableCatalog: React.FC = () => {
       </div>
     );
   }
+
+  const handleUpdateColumnNote = (columnName: string, newNote: string) => {
+    updateColumnNoteMutation.mutate({
+      dbName: dbName!,
+      tableName: tableName!,
+      columnName,
+      note: newNote,
+    });
+  };
 
   const stats = tableStats.data;
   const columns = columnsData.data;
@@ -279,7 +290,14 @@ const TableCatalog: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{column.COLUMN_DEFAULT || '-'}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{column.COLUMN_COMMENT || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{column.COLUMN_NOTE || '-'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
+                    <EditableDescription
+                      value={column.COLUMN_NOTE || ''}
+                      onSave={(newNote) => handleUpdateColumnNote(column.COLUMN_NAME, newNote)}
+                      isLoading={updateColumnNoteMutation.isPending}
+                      placeholder=""
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

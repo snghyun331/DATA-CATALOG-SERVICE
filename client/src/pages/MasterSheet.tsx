@@ -202,7 +202,7 @@ const MasterSheet: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.columns}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.records}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.size}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.note}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.comment}</td>
                   <td className="px-6 py-4 whitespace-nowrap min-w-[200px]">
                     <EditableDescription
                       value={table.description}

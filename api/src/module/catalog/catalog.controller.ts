@@ -101,7 +101,7 @@ export class CatalogController {
     return response;
   }
 
-  @Patch(':dbName/tables/:tableName/:columnName')
+  @Patch(':dbName/tables/:tableName/columns/:columnName/note')
   async updateColumnNote(
     @Param('dbName') dbName: string,
     @Param('tableName') tableName: string,
