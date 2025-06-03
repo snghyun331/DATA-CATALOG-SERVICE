@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatabaseApi } from '../api/database/database.api';
 
 export const useDatabaseStats = (dbName: string) => {
@@ -12,5 +12,19 @@ export const useDatabaseCatalog = (dbName: string) => {
   return useQuery({
     queryKey: ['database-catalog', dbName],
     queryFn: () => DatabaseApi.getDbCatalog(dbName),
+  });
+};
+
+export const useAddDatabase = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: DatabaseApi.postDatabase,
+    onSuccess: () => {
+      // 성공시 대시보드 데이터 다시 가져오기
+      queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
+    },
+    // retry를 비활성화해서 빠른 에러 처리
+    retry: false,
   });
 };

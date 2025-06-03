@@ -5,4 +5,6 @@ export const DatabaseApi = {
   getDbCatalog: (dbName: string) => apiClient.get(`databases/${dbName}`),
   getTableStats: (dbName: string, tableName: string) => apiClient.get(`databases/${dbName}/tables/${tableName}/stats`),
   getTableCatalog: (dbName: string, tableName: string) => apiClient.get(`databases/${dbName}/tables/${tableName}`),
+
+  postDatabase: (data: any) => apiClient.post('databases/db', data), // 추가
 };

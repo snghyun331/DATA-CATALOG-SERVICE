@@ -5,8 +5,8 @@ import { IsNumber, IsString, Matches } from 'class-validator';
 export class CreateDbDto {
   @ApiProperty({ type: String, description: '고객사 코드', example: 'LOTTE', required: true })
   @IsString()
-  @Matches(/^[A-Za-z]+$/, {
-    message: '영문자만 입력가능합니다.',
+  @Matches(/^[A-Za-z-]+$/, {
+    message: '영문자와 하이픈(-)만 입력가능합니다.',
   })
   @Transform(({ value }) => value.toUpperCase())
   @Transform(({ value }) => value.replace(/\s+/g, ''))

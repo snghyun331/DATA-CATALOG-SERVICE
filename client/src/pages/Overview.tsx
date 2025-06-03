@@ -1,14 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatsCard from '../components/StatsCard';
 import DatabaseList from '../components/DatabaseList';
-import { Database, Table, HardDrive, Zap } from 'lucide-react';
+import { Database, Table, HardDrive, Zap, Plus } from 'lucide-react';
 import type { Database as DatabaseType } from '../App';
 import { useDashboardOverview } from '../hooks/useDashboard.query';
+import AddDatabaseModal from '../components/AddDatabaseModal';
+import { useAddDatabase } from '../hooks/useDatabase.query';
+import LoadingOverlay from '../components/LoadingOverlay';
+import NotificationModal from '../components/NotificationModal';
 
 const Overview: React.FC = () => {
   const navigate = useNavigate();
   const { data: dashboardData, isLoading, error } = useDashboardOverview();
+  const addDatabaseMutation = useAddDatabase();
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoadingVisible, setIsLoadingVisible] = useState(false);
+  const [notification, setNotification] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
 
   const handleDBSelect = (db: DatabaseType): void => {
     navigate(`/database/${db.name}`);
@@ -40,6 +59,43 @@ const Overview: React.FC = () => {
   }
 
   const { totalStats, dbStats } = dashboardData.data;
+
+  const handleAddDatabase = async (formData: any) => {
+    // 로딩 시작
+    setIsLoadingVisible(true);
+    // 최소 3초 로딩 보장
+    const minLoadingTime = new Promise((resolve) => setTimeout(resolve, 3000));
+
+    try {
+      // API 호출과 최소 로딩 시간을 동시에 기다림
+      await Promise.all([addDatabaseMutation.mutateAsync(formData), minLoadingTime]);
+
+      // 성공 처리
+      setIsModalOpen(false);
+      setNotification({
+        isOpen: true,
+        type: 'success',
+        title: 'Database Added Successfully',
+        message: `Database "${formData.dbName}" has been successfully added to your system.`,
+      });
+    } catch (error: any) {
+      // 실패 처리
+      setNotification({
+        isOpen: true,
+        type: 'error',
+        title: 'Failed to Add Database',
+        message:
+          error?.response?.data?.message ||
+          'An unexpected error occurred while adding the database. Please check your connection settings and try again.',
+      });
+    } finally {
+      setIsLoadingVisible(false);
+    }
+  };
+
+  const closeNotification = () => {
+    setNotification((prev) => ({ ...prev, isOpen: false }));
+  };
 
   return (
     <>
@@ -77,7 +133,17 @@ const Overview: React.FC = () => {
           icon={<Zap className="mr-2 text-green-500" size={16} />}
         />
       </div>
-      Database List
+      {/* Database List Header with Add Button */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Database List</h2>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Add Database
+        </button>
+      </div>
       <DatabaseList
         databases={dbStats.map((db) => ({
           name: db.dbName,
@@ -87,6 +153,26 @@ const Overview: React.FC = () => {
           status: db.dbTag,
         }))}
         onDBSelect={handleDBSelect}
+      />
+
+      {/* Add Database Modal */}
+      <AddDatabaseModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSubmit={handleAddDatabase}
+        isLoading={isLoadingVisible}
+      />
+
+      {/* Loading Overlay */}
+      <LoadingOverlay isVisible={isLoadingVisible} message="Connecting to database and validating settings..." />
+
+      {/* Notification Modal */}
+      <NotificationModal
+        isOpen={notification.isOpen}
+        onClose={closeNotification}
+        type={notification.type}
+        title={notification.title}
+        message={notification.message}
       />
     </>
   );

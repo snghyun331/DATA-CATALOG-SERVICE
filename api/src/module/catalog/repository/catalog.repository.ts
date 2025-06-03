@@ -14,9 +14,13 @@ export class CatalogRepository {
 
   /* 커넥션 Pool에서 커넥션 하나 가져오는 함수 */
   async getConnectionToDB(companyCode: string): Promise<PoolConnection> {
-    const pool = await this.getPool(companyCode);
-
-    return pool.getConnection();
+    try {
+      const pool = await this.getPool(companyCode);
+      return pool.getConnection();
+    } catch (error) {
+      console.error(`Failed to connect to DB for ${companyCode}:`, error);
+      throw new Error(`Database connection failed for ${companyCode}: ${error.message}`);
+    }
   }
 
   /* Pool 생성 또는 캐시 재사용하는 함수 */
