@@ -41,3 +41,12 @@ export const useTableDescription = () => {
     },
   });
 };
+
+export const useDatabaseDiff = (dbName: string) => {
+  return useQuery({
+    queryKey: ['database-diff', dbName],
+    queryFn: () => DatabaseApi.checkDatabaseDiff(dbName),
+    enabled: !!dbName,
+    // staleTime: 1000 * 60 * 2, // 2분
+  });
+};

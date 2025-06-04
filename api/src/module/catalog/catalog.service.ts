@@ -5,6 +5,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { CreateDbDto } from './dto/createDb.dto';
 import { updateEnvFile } from '../../common/utils/utility';
 import { TableColumns } from './interface/catalog.interface';
+import { CompanyService } from '../company/company.service';
 
 @Injectable()
 export class CatalogService {
@@ -14,6 +15,7 @@ export class CatalogService {
     private readonly catalogRepository: CatalogRepository,
     private readonly connectDBConfig: ConnectDBConfig,
     private readonly firebaseService: FirebaseService,
+    private readonly companyService: CompanyService,
   ) {}
 
   async getMasterCatalog(dbName: string) {
@@ -57,7 +59,7 @@ export class CatalogService {
       }
 
       // 고객사 정보를 firebase에 저장
-      await this.saveCompanyInfoInFirebase(companyCode, companyName);
+      await this.saveCompanyInfoInFirebase(companyCode, companyName, dbInfo.dbName);
 
       // catalog 정보 불러오기
       const tableRows = await this.catalogRepository.getTableCatalogInDb(dbInfo.dbName, connection);
@@ -84,11 +86,11 @@ export class CatalogService {
     }
   }
 
-  private async saveCompanyInfoInFirebase(companyCode: string, companyName: string) {
+  private async saveCompanyInfoInFirebase(companyCode: string, companyName: string, dbName: string) {
     const collection = 'company';
     const data = { companyCode, companyName };
 
-    await this.firebaseService.setDocument(collection, companyCode, data);
+    await this.firebaseService.setDocument(collection, dbName, data);
   }
 
   private async handleMasterRows(tableRows: any, masterRows: any) {
@@ -209,7 +211,8 @@ export class CatalogService {
     await this.firebaseService.setDocument(mainCollection, mainDocument, data);
   }
 
-  async detectChanges(companyCode: string) {
+  async detectChanges(dbName: string) {
+    const companyCode: string = await this.companyService.getCompanyCodeByDbName(dbName);
     const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
     try {

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Eye, Edit3, MoreHorizontal } from 'lucide-react';
-import { useDatabaseCatalog, useDatabaseStats, useTableDescription } from '../hooks/useDatabase.query';
+import { Table } from 'lucide-react';
+import { useDatabaseCatalog, useDatabaseDiff, useDatabaseStats, useTableDescription } from '../hooks/useDatabase.query';
 import EditableDescription from './EditDescription';
+import DatabaseDiff from '../components/DatabaseDiff';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TableData {
   tableName: string;
@@ -16,11 +18,16 @@ interface TableData {
 const MasterSheet: React.FC = () => {
   const { dbName } = useParams<{ dbName: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient(); // 이 줄 추가
 
   // API 호출
   const { data: databaseStats, isLoading: statsLoading, error: statsError } = useDatabaseStats(dbName!);
   const { data: tablesData, isLoading: tablesLoading, error: tablesError } = useDatabaseCatalog(dbName!);
   const updateDescriptionMutation = useTableDescription();
+  const { data: diffData, isLoading: diffLoading } = useDatabaseDiff(dbName!);
+  // const updateSchemaMutation = useUpdateDatabaseSchema();
+
+  const [isDismissed, setIsDismissed] = useState(false);
 
   // 로딩 상태
   if (statsLoading || tablesLoading) {
@@ -37,6 +44,39 @@ const MasterSheet: React.FC = () => {
       tableName,
       description: newDescription,
     });
+  };
+
+  const handleDismissNotification = () => {
+    setIsDismissed(true);
+  };
+
+  const handleUpdateSchema = () => {
+    // updateSchemaMutation.mutate(dbName!, {
+    //   onSuccess: () => {
+    //     setIsDismissed(true);
+    //   },
+    //   onError: (error) => {
+    //     console.error('Schema update failed:', error);
+    //   },
+    // });
+    // 실제 업데이트 API가 없다면 단순히 diff 데이터만 새로고침
+    queryClient.invalidateQueries({ queryKey: ['database-diff', dbName] });
+    queryClient.invalidateQueries({ queryKey: ['database-catalog', dbName] });
+    setIsDismissed(true);
+  };
+
+  // MasterSheet.tsx의 hasTableChanges 함수 수정
+  const hasTableChanges = (tableName: string) => {
+    if (!diffData?.data) return false;
+
+    const diff = diffData.data;
+    return (
+      diff.tables.added.some((item: any) => item.table === tableName) ||
+      diff.tables.deleted.some((item: any) => item.table === tableName) ||
+      diff.columns.added.some((item: any) => item.table === tableName) ||
+      diff.columns.deleted.some((item: any) => item.table === tableName) ||
+      diff.columns.updated.some((item: any) => item.table === tableName)
+    );
   };
 
   const dbStats = databaseStats?.data;
@@ -161,8 +201,22 @@ const MasterSheet: React.FC = () => {
 
       {/* Tables List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Tables ({masterSheetData.length})</h3>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center">
+            <h3 className="text-lg font-semibold text-gray-900">Tables ({masterSheetData.length})</h3>
+
+            {/* Database Diff Component */}
+            {diffData?.data && !isDismissed && (
+              <DatabaseDiff
+                isVisible={diffData.data.changed}
+                diffData={diffData.data}
+                onUpdate={handleUpdateSchema}
+                onDismiss={handleDismissNotification}
+                // isUpdating={updateSchemaMutation.isPending}
+                isUpdating={false}
+              />
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -190,13 +244,21 @@ const MasterSheet: React.FC = () => {
               {masterSheetData.map((table, index) => (
                 <tr
                   key={index}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                    hasTableChanges(table.tableName) ? 'bg-amber-25 border-l-2 border-l-amber-300' : ''
+                  }`}
                   onClick={() => handleTableClick(table.tableName)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <Table className="mr-3 text-blue-500" size={16} />
                       <span className="font-medium text-gray-900">{table.tableName}</span>
+                      {hasTableChanges(table.tableName) && (
+                        <div
+                          className="ml-2 w-1.5 h-1.5 bg-amber-500 rounded-full"
+                          title="This table has changes"
+                        ></div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.columns}</td>

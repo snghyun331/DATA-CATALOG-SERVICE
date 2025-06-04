@@ -12,4 +12,12 @@ export class CompanyService {
 
     return result;
   }
+
+  async getCompanyCodeByDbName(dbName: string) {
+    const collection = 'company';
+    const snapshot = await this.firebaseServie.getMainDocData(collection, dbName);
+    const data = snapshot.data();
+
+    return data.companyCode;
+  }
 }

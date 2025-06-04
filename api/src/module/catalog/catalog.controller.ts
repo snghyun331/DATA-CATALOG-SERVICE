@@ -69,9 +69,9 @@ export class CatalogController {
     return response;
   }
 
-  @Get(':companyCode/diff')
-  async detectChanges(@Param('companyCode') companyCode: string): Promise<ResponseInterface> {
-    const data = await this.catalogService.detectChanges(companyCode);
+  @Get(':dbName/diff')
+  async detectChanges(@Param('dbName') dbName: string): Promise<ResponseInterface> {
+    const data = await this.catalogService.detectChanges(dbName);
 
     const response: ResponseInterface = { message: 'success', data };
 
@@ -93,7 +93,6 @@ export class CatalogController {
     @Param('tableName') tableName: string,
     @Body() { description }: UpdateTableDescriptionDto,
   ): Promise<ResponseInterface> {
-    console.log(dbName);
     await this.catalogService.updateTableDescription(dbName, tableName, description);
 
     const response: ResponseInterface = { message: 'success' };
