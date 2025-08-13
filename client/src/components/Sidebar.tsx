@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Database, BarChart3, Table } from "lucide-react";
+import { Database, BarChart3, Table, ChevronLeft, ChevronRight, Home, Network } from "lucide-react";
 
 interface SidebarItem {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -12,10 +12,11 @@ interface SidebarItem {
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const sidebarItems: SidebarItem[] = [
-    { icon: BarChart3, label: "Overview", path: "/overview" },
-    { icon: Table, label: "Tables", path: "/tables" },
+    { icon: Home, label: "Home", path: "/overview" },
+    { icon: Network, label: "ERD Diagram", path: "/tables" },
   ];
 
 
@@ -31,37 +32,66 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="w-16 bg-gray-900 flex flex-col items-center py-4">
-      {/* Logo */}
-      <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mb-8">
-        <span className="text-white font-bold text-sm">DB</span>
+    <div className={`${isExpanded ? 'w-64' : 'w-16'} bg-gray-900 flex flex-col transition-all duration-300 ease-in-out`}>
+      {/* Header */}
+      <div className="p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              {/* PNG 로고가 들어갈 자리 */}
+              <Database size={16} className="text-white" />
+            </div>
+            {isExpanded && (
+              <span className="text-white font-bold text-lg">Data Catalog</span>
+            )}
+          </div>
+          
+          {/* Toggle Button */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-all duration-200 hover:scale-105"
+            title={isExpanded ? "메뉴 닫기" : "메뉴 열기"}
+          >
+            {isExpanded ? (
+              <ChevronLeft size={20} className="stroke-2" />
+            ) : (
+              <ChevronRight size={20} className="stroke-2" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Menu Items */}
-      {sidebarItems.map((item, index) => (
-        <div key={index} className="relative group mb-2">
-          <button
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-              isActive(item.path) ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"
-            }`}
-            onClick={() => handleMenuClick(item.path)}
-            title={item.label}
-          >
-            <item.icon size={20} />
-          </button>
-
-          {/* Tooltip */}
-          <div className="absolute left-12 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-            {item.label}
-          </div>
-        </div>
-      ))}
+      <div className="flex-1 py-4">
+        <nav className="space-y-2 px-3">
+          {sidebarItems.map((item, index) => (
+            <button
+              key={index}
+              className={`w-full flex items-center rounded-lg transition-colors ${
+                isActive(item.path) 
+                  ? "bg-blue-600 text-white" 
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white"
+              } ${isExpanded ? 'px-3 py-2.5' : 'px-2.5 py-2.5 justify-center'}`}
+              onClick={() => handleMenuClick(item.path)}
+              title={!isExpanded ? item.label : undefined}
+            >
+              <item.icon size={20} />
+              {isExpanded && (
+                <span className="ml-3 text-sm font-medium">{item.label}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {/* Help/Support Button at Bottom */}
-      <div className="mt-auto">
+      <div className="p-3 border-t border-gray-700">
         <button
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-800 hover:text-white transition-colors group"
-          title="Help & Support"
+          className={`w-full flex items-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors ${
+            isExpanded ? 'px-3 py-2.5' : 'px-2.5 py-2.5 justify-center'
+          }`}
+          title={!isExpanded ? "Help & Support" : undefined}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -71,9 +101,9 @@ const Sidebar: React.FC = () => {
               d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <div className="absolute left-12 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-            Help & Support
-          </div>
+          {isExpanded && (
+            <span className="ml-3 text-sm font-medium">Help & Support</span>
+          )}
         </button>
       </div>
     </div>

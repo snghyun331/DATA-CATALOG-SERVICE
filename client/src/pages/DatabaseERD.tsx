@@ -110,12 +110,6 @@ const DatabaseERD: React.FC = () => {
               <div className="text-2xl font-bold text-green-600">{erd.relationships.length}</div>
               <div className="text-sm text-green-500 font-medium">Relations</div>
             </div>
-            <div className="text-center px-4 py-2 bg-purple-50 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
-                {Object.keys(erd.primaryKeys).length}
-              </div>
-              <div className="text-sm text-purple-500 font-medium">PK Tables</div>
-            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import React from "react";
-import { Database, TrendingUp, Network } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Database, TrendingUp } from "lucide-react";
 
 interface DatabaseType {
   name: string;
@@ -16,12 +15,6 @@ interface DatabaseListProps {
 }
 
 const DatabaseList: React.FC<DatabaseListProps> = ({ databases, onDBSelect }) => {
-  const navigate = useNavigate();
-
-  const handleERDClick = (dbName: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // 상위 클릭 이벤트 방지
-    navigate(`/tables?db=${dbName}`);
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -53,14 +46,6 @@ const DatabaseList: React.FC<DatabaseListProps> = ({ databases, onDBSelect }) =>
                   <div className="text-sm font-medium text-gray-900">{db.tables} tables</div>
                   <div className="text-sm text-gray-500">{db.size}</div>
                 </div>
-                <button
-                  onClick={(e) => handleERDClick(db.name, e)}
-                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                  title="View ERD"
-                >
-                  <Network className="w-3 h-3 mr-1" />
-                  ERD
-                </button>
                 <div
                   className={`px-3 py-1 rounded-full text-xs font-medium ${
                     db.status === "active" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"

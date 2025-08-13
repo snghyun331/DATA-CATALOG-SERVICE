@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import StatsCard from '../components/StatsCard';
 import DatabaseList from '../components/DatabaseList';
-import { Database, Table, HardDrive, Zap, Plus } from 'lucide-react';
+import { Database, Table, HardDrive, Zap, Plus, Calendar } from 'lucide-react';
 import type { Database as DatabaseType } from '../App';
 import { useDashboardOverview } from '../hooks/useDashboard.query';
 import AddDatabaseModal from '../components/AddDatabaseModal';
@@ -99,47 +99,38 @@ const Overview: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
-      {/* Page Header */}
-      <div className="mb-8 text-center">
-        <div className="flex items-center justify-center space-x-3 mb-4">
-          <Database className="h-8 w-8 text-blue-600" />
-          <h1 className="text-4xl font-bold text-gray-900">Data Catalog Dashboard</h1>
-        </div>
-        <p className="text-lg text-gray-600">Monitor and manage your database ecosystem</p>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <StatsCard
           value={totalStats.dbCount?.toString() || '0'}
           label="Total Databases"
-          change="↗ 8%"
-          changeType="positive"
-          icon={<Database className="mr-2 text-blue-500" size={16} />}
+          icon={<Database className="text-blue-500" size={18} />}
+          change={8}
+          changeType="increase"
         />
 
         <StatsCard
           value={totalStats.totalTableCount?.toString() || '0'}
           label="Total Tables"
-          change="↘ 3%"
-          changeType="negative"
-          icon={<Table className="mr-2 text-orange-500" size={16} />}
+          icon={<Table className="text-orange-500" size={18} />}
+          change={3}
+          changeType="decrease"
         />
 
         <StatsCard
           value={totalStats.totalRows?.toString() || '0'}
           label="Total Rows"
-          change="Active"
-          changeType="warning"
-          icon={<HardDrive className="mr-2 text-purple-500" size={16} />}
+          icon={<HardDrive className="text-purple-500" size={18} />}
+          change={12}
+          changeType="increase"
         />
 
         <StatsCard
-          value={totalStats.latestUpdated ? new Date(totalStats.latestUpdated).toLocaleString() : 'No Updates'}
+          value={totalStats.latestUpdated ? 
+            new Date(totalStats.latestUpdated).toLocaleDateString('sv-SE').replace(/-/g, '.') : 'No Updates'}
           label="Last Update"
-          change="Live"
-          changeType="info"
-          icon={<Zap className="mr-2 text-green-500" size={16} />}
+          icon={<Zap className="text-green-500" size={18} />}
+          additionalIcon={<Calendar className="text-gray-400" />}
         />
       </div>
       {/* Database List Header with Add Button */}
