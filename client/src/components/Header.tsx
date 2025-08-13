@@ -38,7 +38,7 @@ const Header: React.FC = () => {
               Data Catalog Dashboard
             </h1>
             <p className="text-gray-600 text-sm mt-0.5 font-medium">
-              Monitor and manage your database ecosystem
+              ACG 데이터베이스 현황을 한눈에 확인해보세요.
             </p>
           </div>
         </div>

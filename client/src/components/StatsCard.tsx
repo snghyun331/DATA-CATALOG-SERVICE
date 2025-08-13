@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface StatsCardProps {
@@ -8,9 +8,70 @@ interface StatsCardProps {
   change?: number; // 증감률 (퍼센트)
   changeType?: "increase" | "decrease" | "unchanged";
   additionalIcon?: React.ReactNode; // 추가 작은 아이콘
+  enableAnimation?: boolean; // 애니메이션 활성화 여부
 }
 
-const StatsCard: React.FC<StatsCardProps> = ({ value, label, icon, change, changeType, additionalIcon }) => {
+const StatsCard: React.FC<StatsCardProps> = ({ value, label, icon, change, changeType, additionalIcon, enableAnimation = false }) => {
+  const [displayValue, setDisplayValue] = useState(enableAnimation ? '0' : value);
+  
+  useEffect(() => {
+    if (!enableAnimation || isNaN(Number(value))) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const numValue = Number(value);
+    if (numValue === 0) {
+      setDisplayValue('0');
+      return;
+    }
+
+    const duration = 1000; // 1초 애니메이션
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      if (progress < 1) {
+        // 끝까지 최종값의 자릿수 범위에서 랜덤하게 올라갔다 내려갔다
+        const getRandomInRange = (targetValue) => {
+          if (targetValue < 10) {
+            // 한자리: 1~9
+            return Math.floor(Math.random() * 9) + 1;
+          } else if (targetValue < 100) {
+            // 두자리: 10~99
+            return Math.floor(Math.random() * 90) + 10;
+          } else if (targetValue < 1000) {
+            // 세자리: 100~999
+            return Math.floor(Math.random() * 900) + 100;
+          } else if (targetValue < 10000) {
+            // 네자리: 1000~9999
+            return Math.floor(Math.random() * 9000) + 1000;
+          } else {
+            // 그 이상: 최종값의 50%~150% 범위에서 랜덤
+            const min = Math.floor(targetValue * 0.5);
+            const max = Math.floor(targetValue * 1.5);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+          }
+        };
+        
+        const randomValue = getRandomInRange(numValue);
+        setDisplayValue(randomValue.toString());
+      }
+      
+      if (progress < 1) {
+        // 빠른 속도로 고정 (30ms 간격)
+        setTimeout(animate, 30);
+      } else {
+        setDisplayValue(numValue.toString());
+      }
+    };
+    
+    // 즉시 시작
+    animate();
+    
+  }, [value, enableAnimation]);
   const renderTopRightIndicator = () => {
     // 증감률이 있으면 증감률 표시, 없으면 추가 아이콘 표시
     if (change !== undefined && changeType !== undefined) {
@@ -72,11 +133,11 @@ const StatsCard: React.FC<StatsCardProps> = ({ value, label, icon, change, chang
         <div className="flex-1 flex items-center justify-center">
           <div className="relative">
             <div className="font-extrabold bg-gradient-to-br from-gray-700 via-gray-800 to-gray-900 bg-clip-text text-transparent drop-shadow-lg" style={{ fontSize: '2.75rem' }}>
-              {isNaN(Number(value)) ? value : Number(value).toLocaleString()}
+              {isNaN(Number(displayValue)) ? displayValue : Number(displayValue).toLocaleString()}
             </div>
             {/* 숫자 뒤 그림자 효과 */}
             <div className="absolute inset-0 font-extrabold text-blue-400 opacity-30 blur-sm transform translate-x-0.5 translate-y-0.5" style={{ fontSize: '2.75rem' }}>
-              {isNaN(Number(value)) ? value : Number(value).toLocaleString()}
+              {isNaN(Number(displayValue)) ? displayValue : Number(displayValue).toLocaleString()}
             </div>
           </div>
         </div>

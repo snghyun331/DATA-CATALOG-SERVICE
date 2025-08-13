@@ -98,7 +98,7 @@ const Overview: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+    <div className="min-h-screen bg-gray-100">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <StatsCard
@@ -107,6 +107,7 @@ const Overview: React.FC = () => {
           icon={<Database className="text-blue-500" size={18} />}
           change={8}
           changeType="increase"
+          enableAnimation={true}
         />
 
         <StatsCard
@@ -115,6 +116,7 @@ const Overview: React.FC = () => {
           icon={<Table className="text-orange-500" size={18} />}
           change={3}
           changeType="decrease"
+          enableAnimation={true}
         />
 
         <StatsCard
@@ -123,6 +125,7 @@ const Overview: React.FC = () => {
           icon={<HardDrive className="text-purple-500" size={18} />}
           change={12}
           changeType="increase"
+          enableAnimation={true}
         />
 
         <StatsCard

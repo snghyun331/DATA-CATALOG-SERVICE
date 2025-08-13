@@ -69,7 +69,7 @@ const DatabaseERD: React.FC = () => {
   const erd = erdData.data.data;
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50">
+    <div className="h-screen flex flex-col bg-gray-100">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-6 shadow-sm">
         {/* Breadcrumb Navigation */}
