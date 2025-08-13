@@ -1,8 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Database, BarChart3, Table } from "lucide-react";
-import { databases } from "../App";
-import type { Database as DatabaseType } from "../App";
 
 interface SidebarItem {
   icon: React.ComponentType<{ size?: number; className?: string }>;
@@ -12,33 +10,22 @@ interface SidebarItem {
 }
 
 const Sidebar: React.FC = () => {
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
   const sidebarItems: SidebarItem[] = [
     { icon: BarChart3, label: "Overview", path: "/overview" },
-    { icon: Database, label: "Databases", path: "/databases", hasDropdown: true },
     { icon: Table, label: "Tables", path: "/tables" },
   ];
 
-  const handleDBClick = (db: DatabaseType): void => {
-    navigate(`/database/${db.name}`);
-    setActiveDropdown(null);
-  };
 
-  const handleMenuClick = (path: string, hasDropdown?: boolean): void => {
-    if (!hasDropdown) {
-      navigate(path);
-    }
+  const handleMenuClick = (path: string): void => {
+    navigate(path);
   };
 
   const isActive = (path: string): boolean => {
     if (path === "/overview") {
       return location.pathname === "/" || location.pathname === "/overview";
-    }
-    if (path === "/databases") {
-      return location.pathname.startsWith("/database/");
     }
     return location.pathname === path;
   };
@@ -57,57 +44,16 @@ const Sidebar: React.FC = () => {
             className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
               isActive(item.path) ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"
             }`}
-            onMouseEnter={() => item.hasDropdown && setActiveDropdown("databases")}
-            onMouseLeave={() => !item.hasDropdown && setActiveDropdown(null)}
-            onClick={() => handleMenuClick(item.path, item.hasDropdown)}
+            onClick={() => handleMenuClick(item.path)}
             title={item.label}
           >
             <item.icon size={20} />
           </button>
 
-          {/* Database Dropdown */}
-          {item.hasDropdown && activeDropdown === "databases" && (
-            <div
-              className="absolute left-12 top-0 bg-white rounded-lg shadow-lg border border-gray-200 py-2 min-w-48 z-50"
-              onMouseEnter={() => setActiveDropdown("databases")}
-              onMouseLeave={() => setActiveDropdown(null)}
-            >
-              <div className="px-3 py-2 border-b border-gray-100">
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Databases</span>
-              </div>
-              {databases.map((db, dbIndex) => (
-                <button
-                  key={dbIndex}
-                  onClick={() => handleDBClick(db)}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center justify-between transition-colors ${
-                    location.pathname === `/database/${db.name}` ? "bg-blue-50 border-r-2 border-blue-500" : ""
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-2 h-2 rounded-full ${db.status === "active" ? "bg-green-400" : "bg-yellow-400"}`}
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">{db.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {db.tables} tables • {db.size}
-                      </div>
-                    </div>
-                  </div>
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Tooltip for non-dropdown items */}
-          {!item.hasDropdown && (
-            <div className="absolute left-12 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-              {item.label}
-            </div>
-          )}
+          {/* Tooltip */}
+          <div className="absolute left-12 top-1/2 transform -translate-y-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            {item.label}
+          </div>
         </div>
       ))}
 

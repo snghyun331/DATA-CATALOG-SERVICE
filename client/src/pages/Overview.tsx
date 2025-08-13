@@ -98,9 +98,18 @@ const Overview: React.FC = () => {
   };
 
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+      {/* Page Header */}
+      <div className="mb-8 text-center">
+        <div className="flex items-center justify-center space-x-3 mb-4">
+          <Database className="h-8 w-8 text-blue-600" />
+          <h1 className="text-4xl font-bold text-gray-900">Data Catalog Dashboard</h1>
+        </div>
+        <p className="text-lg text-gray-600">Monitor and manage your database ecosystem</p>
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 ">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <StatsCard
           value={totalStats.dbCount?.toString() || '0'}
           label="Total Databases"
@@ -126,7 +135,7 @@ const Overview: React.FC = () => {
         />
 
         <StatsCard
-          value={totalStats.latestUpdated ? new Date(totalStats.latestUpdated).toLocaleString() : 'Unknown'}
+          value={totalStats.latestUpdated ? new Date(totalStats.latestUpdated).toLocaleString() : 'No Updates'}
           label="Last Update"
           change="Live"
           changeType="info"
@@ -134,26 +143,52 @@ const Overview: React.FC = () => {
         />
       </div>
       {/* Database List Header with Add Button */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Database List</h2>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Database
-        </button>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center space-x-3">
+          <HardDrive className="h-6 w-6 text-gray-700" />
+          <h2 className="text-2xl font-bold text-gray-900">Database List</h2>
+        </div>
+        <div className="flex items-center space-x-3">
+          {dbStats.length > 0 && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Database
+            </button>
+          )}
+        </div>
       </div>
-      <DatabaseList
-        databases={dbStats.map((db) => ({
-          name: db.dbName,
-          tables: db.tableCount,
-          size: `${db.dbSize}MB`,
-          lastUpdate: new Date(db.lastUpdated).toLocaleString(),
-          status: db.dbTag,
-        }))}
-        onDBSelect={handleDBSelect}
-      />
+      {dbStats.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-96 space-y-8 bg-white rounded-2xl border-2 border-dashed border-gray-300 p-12 shadow-lg">
+          <div className="text-center">
+            <Database className="mx-auto h-24 w-24 text-gray-300" />
+            <h3 className="mt-6 text-2xl font-semibold text-gray-900">No Databases Found</h3>
+            <p className="mt-4 text-lg text-gray-500 max-w-md">
+              Get started by adding your first database to the catalog.
+            </p>
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-lg hover:shadow-xl"
+          >
+            <Plus className="w-6 h-6 mr-3" />
+            Add Database
+          </button>
+        </div>
+      ) : (
+        <DatabaseList
+          databases={dbStats.map((db) => ({
+            name: db.dbName,
+            tables: db.tableCount,
+            size: `${db.dbSize}MB`,
+            lastUpdate: new Date(db.lastUpdated).toLocaleString(),
+            status: db.dbTag,
+          }))}
+          onDBSelect={handleDBSelect}
+        />
+      )}
 
       {/* Add Database Modal */}
       <AddDatabaseModal
@@ -174,7 +209,7 @@ const Overview: React.FC = () => {
         title={notification.title}
         message={notification.message}
       />
-    </>
+    </div>
   );
 };
 

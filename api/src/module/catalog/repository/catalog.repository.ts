@@ -74,4 +74,40 @@ export class CatalogRepository {
 
     return Number(rows[0].DB_DATA_SIZE);
   }
+
+  async getForeignKeyRelations(dbName: string, connection: PoolConnection) {
+    const query = `
+      SELECT 
+        TABLE_NAME,
+        COLUMN_NAME,
+        CONSTRAINT_NAME,
+        REFERENCED_TABLE_NAME,
+        REFERENCED_COLUMN_NAME
+      FROM information_schema.KEY_COLUMN_USAGE
+      WHERE TABLE_SCHEMA = '${dbName}'
+        AND REFERENCED_TABLE_NAME IS NOT NULL
+      ORDER BY TABLE_NAME, COLUMN_NAME
+    `;
+
+    const [rows] = await connection.query(query);
+
+    return rows;
+  }
+
+  async getPrimaryKeys(dbName: string, connection: PoolConnection) {
+    const query = `
+      SELECT 
+        TABLE_NAME,
+        COLUMN_NAME,
+        CONSTRAINT_NAME
+      FROM information_schema.KEY_COLUMN_USAGE
+      WHERE TABLE_SCHEMA = '${dbName}'
+        AND CONSTRAINT_NAME = 'PRIMARY'
+      ORDER BY TABLE_NAME, ORDINAL_POSITION
+    `;
+
+    const [rows] = await connection.query(query);
+
+    return rows;
+  }
 }

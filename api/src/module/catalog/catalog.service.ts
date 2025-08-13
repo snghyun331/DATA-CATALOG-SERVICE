@@ -3,7 +3,6 @@ import { CatalogRepository } from './repository/catalog.repository';
 import { ConnectDBConfig } from '../../config/db.config';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateDbDto } from './dto/createDb.dto';
-import { updateEnvFile } from '../../common/utils/utility';
 import { TableColumns } from './interface/catalog.interface';
 import { CompanyService } from '../company/company.service';
 
@@ -39,15 +38,8 @@ export class CatalogService {
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
     const { companyCode, companyName, ...dbInfo } = dto;
 
-    /* 입력받은 정보를 .env에 저장 */
-    const envFormatted = {
-      [`DB_${companyCode}_HOST`]: dbInfo.dbHost,
-      [`DB_${companyCode}_PORT`]: dbInfo.dbPort,
-      [`DB_${companyCode}_USER`]: dbInfo.dbUser,
-      [`DB_${companyCode}_NAME`]: dbInfo.dbName,
-      [`DB_${companyCode}_PW`]: dbInfo.dbPw,
-    };
-    updateEnvFile(envFormatted);
+    /* 입력받은 정보를 Firestore에 저장 */
+    await this.firebaseService.saveDbConnection(companyCode, dbInfo);
 
     /* DB로부터 Catalog 정보 불러오기 & 모두 firebase에 저장 */
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
@@ -514,5 +506,73 @@ export class CatalogService {
     };
 
     return result;
+  }
+
+  async getDatabaseERD(dbName: string) {
+    const companyCode: string = await this.companyService.getCompanyCodeByDbName(dbName);
+    const connection = await this.catalogRepository.getConnectionToDB(companyCode);
+
+    try {
+      const [tables, foreignKeys, primaryKeys] = await Promise.all([
+        this.catalogRepository.getMasterCatalogInDb(dbName, connection),
+        this.catalogRepository.getForeignKeyRelations(dbName, connection),
+        this.catalogRepository.getPrimaryKeys(dbName, connection),
+      ]);
+
+      // 테이블 정보 구성
+      const tableNodes = (tables as any[]).map((table: any) => ({
+        id: table.TABLE_NAME,
+        name: table.TABLE_NAME,
+        comment: table.TABLE_COMMENT || '',
+        rows: table.TABLE_ROWS,
+        size: table.DATA_SIZE,
+      }));
+
+      // FK 관계 구성
+      const relationships = (foreignKeys as any[]).map((fk: any) => ({
+        from: fk.TABLE_NAME,
+        to: fk.REFERENCED_TABLE_NAME,
+        fromColumn: fk.COLUMN_NAME,
+        toColumn: fk.REFERENCED_COLUMN_NAME,
+        constraintName: fk.CONSTRAINT_NAME,
+      }));
+
+      // PK 정보 구성
+      const primaryKeyMap = {};
+      (primaryKeys as any[]).forEach((pk: any) => {
+        if (!primaryKeyMap[pk.TABLE_NAME]) {
+          primaryKeyMap[pk.TABLE_NAME] = [];
+        }
+        primaryKeyMap[pk.TABLE_NAME].push(pk.COLUMN_NAME);
+      });
+
+      // FK 정보 구성 (테이블별로 그룹화)
+      const foreignKeyMap = {};
+      (foreignKeys as any[]).forEach((fk: any) => {
+        if (!foreignKeyMap[fk.TABLE_NAME]) {
+          foreignKeyMap[fk.TABLE_NAME] = [];
+        }
+        foreignKeyMap[fk.TABLE_NAME].push({
+          column: fk.COLUMN_NAME,
+          references: `${fk.REFERENCED_TABLE_NAME}.${fk.REFERENCED_COLUMN_NAME}`,
+          referencedTable: fk.REFERENCED_TABLE_NAME,
+          referencedColumn: fk.REFERENCED_COLUMN_NAME,
+          constraintName: fk.CONSTRAINT_NAME,
+        });
+      });
+
+      return {
+        tables: tableNodes,
+        relationships,
+        primaryKeys: primaryKeyMap,
+        foreignKeys: foreignKeyMap,
+        dbName,
+      };
+    } catch (err) {
+      this.logger.error(err);
+      throw err;
+    } finally {
+      connection.release();
+    }
   }
 }

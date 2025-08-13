@@ -26,15 +26,15 @@ const StatsCard: React.FC<StatsCardProps> = ({ value, label, change, changeType,
   };
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 min-h-[140px]">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-2">
-          <span className={`text-sm px-2 py-1 rounded-full ${getChangeColor(changeType)}`}>{change}</span>
+          <span className={`text-sm px-3 py-1.5 rounded-full ${getChangeColor(changeType)}`}>{change}</span>
         </div>
-        <Settings className="text-gray-400" size={16} />
+        <Settings className="text-gray-400" size={18} />
       </div>
-      <div className="text-2xl font-bold text-gray-900 mb-1">{value}</div>
-      <div className="text-sm text-gray-600 flex items-center">
+      <div className="text-3xl font-bold text-gray-900 mb-2">{value}</div>
+      <div className="text-base text-gray-600 flex items-center">
         {icon}
         {label}
       </div>

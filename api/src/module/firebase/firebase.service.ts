@@ -110,4 +110,24 @@ export class FirebaseService {
 
     return;
   }
+
+  async saveDbConnection(companyCode: string, dbInfo: any): Promise<void> {
+    const collection = 'dbConnections';
+    const docId = companyCode;
+    await this.firestore.collection(collection).doc(docId).set(dbInfo, { merge: true });
+
+    return;
+  }
+
+  async getDbConnection(companyCode: string): Promise<any> {
+    const collection = 'dbConnections';
+    const docId = companyCode;
+    const docSnapshot = await this.firestore.collection(collection).doc(docId).get();
+    
+    if (!docSnapshot.exists) {
+      throw new Error(`DB connection info not found for company: ${companyCode}`);
+    }
+
+    return docSnapshot.data();
+  }
 }

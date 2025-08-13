@@ -1,610 +1,295 @@
-import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Table,
-  Search,
-  Eye,
-  Edit3,
-  Trash2,
-  Plus,
-  Download,
-  RefreshCw,
-  MoreHorizontal,
-  Database,
-  HardDrive,
-  Users,
-} from "lucide-react";
-
-// Types
-interface TableInfo {
-  id: string;
-  name: string;
-  database: string;
-  columns: number;
-  records: string;
-  size: string;
-  lastUpdate: string;
-  type: "primary" | "secondary" | "lookup" | "log" | "config";
-  status: "active" | "maintenance" | "error";
-  engine: "MySQL" | "PostgreSQL" | "MongoDB";
-  lastAccessed: string;
-  owner: string;
-}
-
-// Mock data - 실제로는 API에서 가져올 데이터
-const mockTables: TableInfo[] = [
-  {
-    id: "1",
-    name: "users",
-    database: "UserDB",
-    columns: 12,
-    records: "125,430",
-    size: "45MB",
-    lastUpdate: "2 mins ago",
-    type: "primary",
-    status: "active",
-    engine: "MySQL",
-    lastAccessed: "1 min ago",
-    owner: "john.doe",
-  },
-  {
-    id: "2",
-    name: "user_profiles",
-    database: "UserDB",
-    columns: 18,
-    records: "125,430",
-    size: "78MB",
-    lastUpdate: "5 mins ago",
-    type: "secondary",
-    status: "active",
-    engine: "MySQL",
-    lastAccessed: "3 mins ago",
-    owner: "jane.smith",
-  },
-  {
-    id: "3",
-    name: "products",
-    database: "ProductDB",
-    columns: 15,
-    records: "8,720",
-    size: "12MB",
-    lastUpdate: "15 mins ago",
-    type: "primary",
-    status: "active",
-    engine: "PostgreSQL",
-    lastAccessed: "10 mins ago",
-    owner: "mike.johnson",
-  },
-  {
-    id: "4",
-    name: "product_categories",
-    database: "ProductDB",
-    columns: 5,
-    records: "156",
-    size: "1MB",
-    lastUpdate: "2 days ago",
-    type: "lookup",
-    status: "active",
-    engine: "PostgreSQL",
-    lastAccessed: "4 hours ago",
-    owner: "sarah.wilson",
-  },
-  {
-    id: "5",
-    name: "orders",
-    database: "OrderDB",
-    columns: 12,
-    records: "89,340",
-    size: "78MB",
-    lastUpdate: "5 mins ago",
-    type: "primary",
-    status: "active",
-    engine: "MySQL",
-    lastAccessed: "2 mins ago",
-    owner: "david.brown",
-  },
-  {
-    id: "6",
-    name: "order_items",
-    database: "OrderDB",
-    columns: 7,
-    records: "234,580",
-    size: "145MB",
-    lastUpdate: "5 mins ago",
-    type: "secondary",
-    status: "active",
-    engine: "MySQL",
-    lastAccessed: "2 mins ago",
-    owner: "david.brown",
-  },
-  {
-    id: "7",
-    name: "user_sessions",
-    database: "UserDB",
-    columns: 8,
-    records: "892,100",
-    size: "156MB",
-    lastUpdate: "30 secs ago",
-    type: "log",
-    status: "active",
-    engine: "MySQL",
-    lastAccessed: "10 secs ago",
-    owner: "system",
-  },
-  {
-    id: "8",
-    name: "audit_logs",
-    database: "AnalyticsDB",
-    columns: 11,
-    records: "2,340,560",
-    size: "890MB",
-    lastUpdate: "1 min ago",
-    type: "log",
-    status: "error",
-    engine: "MongoDB",
-    lastAccessed: "5 mins ago",
-    owner: "system",
-  },
-  {
-    id: "9",
-    name: "app_settings",
-    database: "UserDB",
-    columns: 4,
-    records: "23",
-    size: "256KB",
-    lastUpdate: "1 week ago",
-    type: "config",
-    status: "maintenance",
-    engine: "MySQL",
-    lastAccessed: "2 days ago",
-    owner: "admin",
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { Network, Database, Loader, AlertCircle, Search, Filter } from 'lucide-react';
+import ERDVisualization from '../components/ERDVisualization';
+import { DashboardApi } from '../api/dashboard/dashboard.api';
+import apiClient from '../api/apiClient';
 
 const Tables: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterDatabase, setFilterDatabase] = useState<string>("all");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [sortField, setSortField] = useState<keyof TableInfo>("name");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [selectedTables, setSelectedTables] = useState<string[]>([]);
-  const navigate = useNavigate();
+  const [selectedDatabase, setSelectedDatabase] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchParams] = useSearchParams();
 
-  // 필터링 및 정렬된 테이블 목록
-  const filteredTables = useMemo(() => {
-    let filtered = mockTables;
+  // 전체 데이터베이스 목록 조회 (Overview와 동일한 데이터)
+  const { data: dashboardData, isLoading: dashboardLoading } = useQuery({
+    queryKey: ['dashboard-overview'],
+    queryFn: DashboardApi.getOverview,
+    refetchOnWindowFocus: true, // 탭 전환 시 최신 데이터 반영
+    refetchInterval: 30000, // 30초마다 자동 새로고침
+  });
 
-    // 검색 필터
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (table) =>
-          table.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          table.database.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          table.owner.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  // 선택된 데이터베이스의 ERD 데이터 조회
+  const { data: erdData, isLoading: erdLoading, error: erdError } = useQuery({
+    queryKey: ['database-erd', selectedDatabase],
+    queryFn: () => apiClient.get(`/databases/${selectedDatabase}/erd`),
+    enabled: selectedDatabase !== 'all' && selectedDatabase !== '',
+  });
+
+  // API 응답 구조 확인을 위한 로깅
+  console.log('Dashboard Data:', dashboardData);
+  console.log('Data Structure:', dashboardData?.data);
+
+  // 다양한 응답 구조에 대응
+  let databases = [];
+  if (dashboardData?.data?.data?.dbStats) {
+    databases = dashboardData.data.data.dbStats;
+  } else if (dashboardData?.data?.dbStats) {
+    databases = dashboardData.data.dbStats;
+  } else if (dashboardData?.data) {
+    databases = dashboardData.data;
+  }
+  
+  console.log('Databases:', databases);
+  
+  const filteredDatabases = databases.filter((db: any) =>
+    searchTerm === '' || db.dbName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // URL 파라미터로부터 선택할 DB 확인 및 자동 선택
+  useEffect(() => {
+    const dbFromUrl = searchParams.get('db');
+    if (dbFromUrl && databases.some((db: any) => db.dbName === dbFromUrl)) {
+      setSelectedDatabase(dbFromUrl);
     }
+  }, [searchParams, databases]);
 
-    // 데이터베이스 필터
-    if (filterDatabase !== "all") {
-      filtered = filtered.filter((table) => table.database === filterDatabase);
-    }
-
-    // 타입 필터
-    if (filterType !== "all") {
-      filtered = filtered.filter((table) => table.type === filterType);
-    }
-
-    // 상태 필터
-    if (filterStatus !== "all") {
-      filtered = filtered.filter((table) => table.status === filterStatus);
-    }
-
-    // 정렬
-    filtered.sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        const comparison = aValue.localeCompare(bValue);
-        return sortDirection === "asc" ? comparison : -comparison;
-      }
-
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
-      }
-
-      return 0;
-    });
-
-    return filtered;
-  }, [searchTerm, filterDatabase, filterType, filterStatus, sortField, sortDirection]);
-
-  // 유니크한 데이터베이스 목록
-  const databases = [...new Set(mockTables.map((table) => table.database))];
-
-  const handleSort = (field: keyof TableInfo) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const handleSelectTable = (tableId: string) => {
-    setSelectedTables((prev) => (prev.includes(tableId) ? prev.filter((id) => id !== tableId) : [...prev, tableId]));
-  };
-
-  const handleSelectAll = () => {
-    if (selectedTables.length === filteredTables.length) {
-      setSelectedTables([]);
-    } else {
-      setSelectedTables(filteredTables.map((table) => table.id));
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800";
-      case "maintenance":
-        return "bg-yellow-100 text-yellow-800";
-      case "error":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "primary":
-        return <div className="w-2 h-2 bg-blue-500 rounded-full"></div>;
-      case "secondary":
-        return <div className="w-2 h-2 bg-purple-500 rounded-full"></div>;
-      case "lookup":
-        return <div className="w-2 h-2 bg-green-500 rounded-full"></div>;
-      case "log":
-        return <div className="w-2 h-2 bg-orange-500 rounded-full"></div>;
-      case "config":
-        return <div className="w-2 h-2 bg-gray-500 rounded-full"></div>;
-      default:
-        return <div className="w-2 h-2 bg-gray-400 rounded-full"></div>;
-    }
-  };
-
-  const getSortIcon = (field: keyof TableInfo) => {
-    if (sortField !== field) {
-      return (
-        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
-        </svg>
-      );
-    }
-
+  if (dashboardLoading) {
     return (
-      <svg
-        className={`w-4 h-4 text-blue-600 ${sortDirection === "desc" ? "rotate-180" : ""}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-      </svg>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading databases...</p>
+        </div>
+      </div>
     );
-  };
-
-  // 통계 계산
-  const totalTables = mockTables.length;
-  const activeTables = mockTables.filter((t) => t.status === "active").length;
-  const totalRecords = mockTables.reduce((sum, table) => {
-    const records = parseInt(table.records.replace(/,/g, ""));
-    return sum + records;
-  }, 0);
-  const avgColumns = Math.round(mockTables.reduce((sum, table) => sum + table.columns, 0) / totalTables);
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="h-screen flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tables Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage all database tables across your infrastructure</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </button>
-          <button className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </button>
-          <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Table
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Table className="h-8 w-8 text-blue-500" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Tables</p>
-              <p className="text-2xl font-semibold text-gray-900">{totalTables}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Database className="h-8 w-8 text-green-500" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Active Tables</p>
-              <p className="text-2xl font-semibold text-gray-900">{activeTables}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Users className="h-8 w-8 text-purple-500" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Records</p>
-              <p className="text-2xl font-semibold text-gray-900">{totalRecords.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <HardDrive className="h-8 w-8 text-orange-500" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Avg Columns</p>
-              <p className="text-2xl font-semibold text-gray-900">{avgColumns}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+            <div className="flex items-center space-x-3">
+              <Network className="h-6 w-6 text-blue-600" />
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Entity Relationship Diagrams</h1>
+                <p className="text-sm text-gray-500">
+                  Visualize database table relationships and structures
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Controls */}
+          <div className="flex items-center space-x-4">
+            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search tables..."
+                placeholder="Search databases..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Database</label>
-            <select
-              value={filterDatabase}
-              onChange={(e) => setFilterDatabase(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Databases</option>
-              {databases.map((db) => (
-                <option key={db} value={db}>
-                  {db}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Types</option>
-              <option value="primary">Primary</option>
-              <option value="secondary">Secondary</option>
-              <option value="lookup">Lookup</option>
-              <option value="log">Log</option>
-              <option value="config">Config</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="error">Error</option>
-            </select>
+            
+            {/* Database Selector */}
+            <div className="flex items-center space-x-2">
+              <Filter className="h-4 w-4 text-gray-500" />
+              <select
+                value={selectedDatabase}
+                onChange={(e) => setSelectedDatabase(e.target.value)}
+                className="block w-48 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Select Database</option>
+                {filteredDatabases.map((db: any) => (
+                  <option key={db.dbName} value={db.dbName}>
+                    {db.dbName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Tables ({filteredTables.length})</h3>
-            {selectedTables.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">{selectedTables.length} selected</span>
-                <button className="text-sm text-red-600 hover:text-red-800">Delete Selected</button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left">
-                  <input
-                    type="checkbox"
-                    checked={selectedTables.length === filteredTables.length && filteredTables.length > 0}
-                    onChange={handleSelectAll}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort("name")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Table Name</span>
-                    {getSortIcon("name")}
+      {/* Content */}
+      <div className="flex-1 relative">
+        {selectedDatabase === 'all' || selectedDatabase === '' ? (
+          <div className="flex h-full">
+            {/* Database List Sidebar */}
+            <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
+              <div className="p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Available Databases</h3>
+                
+                {filteredDatabases.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Database className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">
+                      {searchTerm ? 'No databases match your search' : 'No databases available'}
+                    </p>
                   </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort("database")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Database</span>
-                    {getSortIcon("database")}
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort("columns")}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Columns</span>
-                    {getSortIcon("columns")}
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Records
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Owner
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Update
-                </th>
-                <th className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredTables.map((table) => (
-                <tr key={table.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={selectedTables.includes(table.id)}
-                      onChange={() => handleSelectTable(table.id)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <Table className="mr-3 h-5 w-5 text-gray-400" />
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{table.name}</div>
-                        <div className="text-sm text-gray-500">{table.engine}</div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredDatabases.map((db: any) => (
+                      <div
+                        key={db.dbName}
+                        onClick={() => setSelectedDatabase(db.dbName)}
+                        className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                      >
+                        <div className="flex items-start space-x-3">
+                          <Database className="h-5 w-5 text-blue-600 mt-1" />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">{db.dbName}</h4>
+                            <div className="mt-2 space-y-1">
+                              <div className="flex justify-between text-sm text-gray-500">
+                                <span>Tables:</span>
+                                <span className="font-medium">{db.tableCount}</span>
+                              </div>
+                              <div className="flex justify-between text-sm text-gray-500">
+                                <span>Size:</span>
+                                <span className="font-medium">{db.dbSize}MB</span>
+                              </div>
+                              <div className="flex justify-between text-sm text-gray-500">
+                                <span>Updated:</span>
+                                <span className="font-medium">
+                                  {new Date(db.lastUpdated).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                            {db.dbTag && (
+                              <span className="inline-block mt-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                {db.dbTag}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => navigate(`/database/${table.database}`)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      {table.database}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center space-x-2">
-                      {getTypeIcon(table.type)}
-                      <span className="text-sm text-gray-900 capitalize">{table.type}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.columns}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.records}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.size}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                        table.status
-                      )}`}
-                    >
-                      {table.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{table.owner}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{table.lastUpdate}</div>
-                    <div className="text-sm text-gray-500">Accessed: {table.lastAccessed}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      <button className="text-blue-600 hover:text-blue-800" title="View Table">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-800" title="Edit Table">
-                        <Edit3 className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-800" title="Delete Table">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      <button className="text-gray-600 hover:text-gray-800" title="More Options">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-        {/* Empty State */}
-        {filteredTables.length === 0 && (
-          <div className="text-center py-12">
-            <Table className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No tables found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || filterDatabase !== "all" || filterType !== "all" || filterStatus !== "all"
-                ? "Try adjusting your search or filter criteria."
-                : "Get started by creating your first table."}
-            </p>
-            {searchTerm === "" && filterDatabase === "all" && filterType === "all" && filterStatus === "all" && (
-              <div className="mt-6">
-                <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Table
-                </button>
+            {/* Main Content */}
+            <div className="flex-1 flex items-center justify-center bg-gray-50">
+              <div className="text-center">
+                <Network className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Database</h3>
+                <p className="text-gray-500 max-w-md">
+                  Choose a database from the sidebar to view its Entity Relationship Diagram and explore table relationships.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // ERD View
+          <div className="h-full flex flex-col">
+            {/* ERD Header */}
+            <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setSelectedDatabase('all')}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    ← Back to Database List
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <h2 className="text-lg font-medium text-gray-900">{selectedDatabase} ERD</h2>
+                </div>
+                
+                {erdData?.data && (
+                  <div className="flex items-center space-x-6 text-sm">
+                    <div className="text-center">
+                      <div className="font-semibold text-blue-600">{erdData.data.tables.length}</div>
+                      <div className="text-gray-500">Tables</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-semibold text-green-600">{erdData.data.relationships.length}</div>
+                      <div className="text-gray-500">Relations</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-semibold text-purple-600">
+                        {Object.keys(erdData.data.primaryKeys).length}
+                      </div>
+                      <div className="text-gray-500">PK Tables</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ERD Content */}
+            <div className="flex-1 relative">
+              {erdLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <Loader className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600">Loading ERD for {selectedDatabase}...</p>
+                  </div>
+                </div>
+              ) : erdError ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load ERD</h3>
+                    <p className="text-red-600 mb-4">Error: {(erdError as Error).message}</p>
+                    <button
+                      onClick={() => setSelectedDatabase('all')}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Back to Database List
+                    </button>
+                  </div>
+                </div>
+              ) : erdData?.data ? (
+                <ERDVisualization erdData={erdData.data} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No ERD Data Available</h3>
+                    <p className="text-gray-600 mb-4">No table relationships found for {selectedDatabase}</p>
+                    <button
+                      onClick={() => setSelectedDatabase('all')}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Back to Database List
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Legend */}
+            {erdData?.data && (
+              <div className="bg-white border-t border-gray-200 px-6 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-6 text-xs text-gray-500">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-1 bg-red-600 rounded relative">
+                        <div className="absolute -right-1 -top-1 w-0 h-0 border-l-2 border-r-0 border-t-2 border-b-2 border-l-red-600 border-t-transparent border-b-transparent"></div>
+                      </div>
+                      <span>Foreign Key Relationship</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-3 h-3 bg-yellow-400 rounded"></div>
+                      <span>Primary Key</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Database size={12} />
+                      <span>Table Node</span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-400">
+                    Use mouse wheel to zoom • Drag to pan • Click and drag nodes to reposition
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -113,4 +113,13 @@ export class CatalogController {
 
     return response;
   }
+
+  @Get(':dbName/erd')
+  async getDatabaseERD(@Param('dbName') dbName: string): Promise<ResponseInterface> {
+    const data = await this.catalogService.getDatabaseERD(dbName);
+
+    const response: ResponseInterface = { message: 'success', data };
+
+    return response;
+  }
 }
