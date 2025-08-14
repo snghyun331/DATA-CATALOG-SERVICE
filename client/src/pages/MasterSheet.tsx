@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table } from 'lucide-react';
+import { Table, Database, FileText, HardDrive, Clock } from 'lucide-react';
 import { useDatabaseCatalog, useDatabaseDiff, useDatabaseStats, useTableDescription } from '../hooks/useDatabase.query';
 import EditableDescription from './EditDescription';
 import DatabaseDiff from '../components/DatabaseDiff';
@@ -87,13 +87,13 @@ const MasterSheet: React.FC = () => {
     tableName: table.TABLE_NAME,
     columns: table.TABLE_COLUMNS,
     records: table.TABLE_ROWS,
-    size: `${table.DATA_SIZE}MB`,
+    size: `${table.DATA_SIZE} MB`,
     description: table.TABLE_DESCRIPTION,
     comment: table.TABLE_COMMENT,
   }));
 
   const handleBack = (): void => {
-    navigate('/overview');
+    navigate('/home');
   };
 
   const handleTableClick = (tableName: string): void => {
@@ -107,7 +107,7 @@ const MasterSheet: React.FC = () => {
         <ol className="flex items-center space-x-4">
           <li>
             <div>
-              <button onClick={() => navigate('/overview')} className="text-gray-400 hover:text-gray-500">
+              <button onClick={() => navigate('/home')} className="text-gray-400 hover:text-gray-500">
                 <svg className="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                 </svg>
@@ -125,7 +125,7 @@ const MasterSheet: React.FC = () => {
                 />
               </svg>
               <button
-                onClick={() => navigate('/overview')}
+                onClick={() => navigate('/home')}
                 className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
               >
                 Databases
@@ -174,27 +174,51 @@ const MasterSheet: React.FC = () => {
             </span>
           </div>
           <button onClick={handleBack} className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
-            ← Back to Overview
+            ← Back to Home
           </button>
         </div>
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 rounded-lg p-4">
-            <div className="text-sm text-blue-600 mb-1">Total Tables</div>
-            <div className="text-2xl font-bold text-blue-900">{dbStats.tableCount}</div>
+            <div className="flex items-center">
+              <Table className="w-5 h-5 text-blue-600 mr-3" />
+              <div>
+                <div className="text-sm text-blue-600 mb-1">Total Tables</div>
+                <div className="text-2xl font-bold text-blue-900">{dbStats.tableCount.toLocaleString()}</div>
+              </div>
+            </div>
           </div>
           <div className="bg-green-50 rounded-lg p-4">
-            <div className="text-sm text-green-600 mb-1">Total Records</div>
-            <div className="text-2xl font-bold text-green-900">{dbStats.rows}</div>
+            <div className="flex items-center">
+              <Database className="w-5 h-5 text-green-600 mr-3" />
+              <div>
+                <div className="text-sm text-green-600 mb-1">Total Records</div>
+                <div className="text-2xl font-bold text-green-900">{Number(dbStats.rows).toLocaleString()}</div>
+              </div>
+            </div>
           </div>
           <div className="bg-purple-50 rounded-lg p-4">
-            <div className="text-sm text-purple-600 mb-1">Total Size</div>
-            <div className="text-2xl font-bold text-purple-900">{dbStats.dbSize}</div>
+            <div className="flex items-center">
+              <HardDrive className="w-5 h-5 text-purple-600 mr-3" />
+              <div>
+                <div className="text-sm text-purple-600 mb-1">Total Size</div>
+                <div className="text-2xl font-bold text-purple-900">{dbStats.dbSize} MB</div>
+              </div>
+            </div>
           </div>
           <div className="bg-orange-50 rounded-lg p-4">
-            <div className="text-sm text-orange-600 mb-1">Last Update</div>
-            <div className="text-2xl font-bold text-orange-900">{dbStats.lastUpdated}</div>
+            <div className="flex items-center">
+              <Clock className="w-5 h-5 text-orange-600 mr-3" />
+              <div>
+                <div className="text-sm text-orange-600 mb-1">Last Update</div>
+                <div className="text-2xl font-bold text-orange-900">
+                  {dbStats.lastUpdated
+                    ? new Date(dbStats.lastUpdated).toLocaleDateString('sv-SE').replace(/-/g, '.')
+                    : 'No Updates'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

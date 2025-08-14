@@ -2,7 +2,6 @@ import { BadRequestException, Logger } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
 import { ValidationErrorBody, ValidationErrorDetail } from '../common/interface/validation.interface';
 
-/*  validateErr Key가 isNotEmpty일 경우, 해당 값이 에러메세지로 전달됩니다. */
 export const validationOptions = {
   whitelist: false,
   forbidNonWhitelisted: false,

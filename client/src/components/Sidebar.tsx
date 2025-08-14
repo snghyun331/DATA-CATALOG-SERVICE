@@ -14,8 +14,8 @@ const Sidebar: React.FC = () => {
   const location = useLocation();
 
   const sidebarItems: SidebarItem[] = [
-    { icon: Home, label: 'Home', path: '/overview' },
-    { icon: Network, label: 'ERD Diagram', path: '/tables' },
+    { icon: Home, label: 'Home', path: '/home' },
+    { icon: Network, label: 'ERD Diagram', path: '/erd' },
   ];
 
   const handleMenuClick = (path: string): void => {
@@ -23,8 +23,8 @@ const Sidebar: React.FC = () => {
   };
 
   const isActive = (path: string): boolean => {
-    if (path === '/overview') {
-      return location.pathname === '/' || location.pathname === '/overview';
+    if (path === '/home') {
+      return location.pathname === '/' || location.pathname === '/home';
     }
     return location.pathname === path;
   };

@@ -6,7 +6,7 @@ import ERDVisualization from '../components/ERDVisualization';
 import { DashboardApi } from '../api/dashboard/dashboard.api';
 import apiClient from '../api/apiClient';
 
-const Tables: React.FC = () => {
+const Erd: React.FC = () => {
   const [selectedDatabase, setSelectedDatabase] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [searchParams] = useSearchParams();
@@ -20,7 +20,11 @@ const Tables: React.FC = () => {
   });
 
   // 선택된 데이터베이스의 ERD 데이터 조회
-  const { data: erdData, isLoading: erdLoading, error: erdError } = useQuery({
+  const {
+    data: erdData,
+    isLoading: erdLoading,
+    error: erdError,
+  } = useQuery({
     queryKey: ['database-erd', selectedDatabase],
     queryFn: () => apiClient.get(`/databases/${selectedDatabase}/erd`),
     enabled: selectedDatabase !== 'all' && selectedDatabase !== '',
@@ -39,11 +43,11 @@ const Tables: React.FC = () => {
   } else if (dashboardData?.data) {
     databases = dashboardData.data;
   }
-  
+
   console.log('Databases:', databases);
-  
-  const filteredDatabases = databases.filter((db: any) =>
-    searchTerm === '' || db.dbName.toLowerCase().includes(searchTerm.toLowerCase())
+
+  const filteredDatabases = databases.filter(
+    (db: any) => searchTerm === '' || db.dbName.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   // URL 파라미터로부터 선택할 DB 확인 및 자동 선택
@@ -75,13 +79,11 @@ const Tables: React.FC = () => {
               <Network className="h-6 w-6 text-blue-600" />
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">Entity Relationship Diagrams</h1>
-                <p className="text-sm text-gray-500">
-                  Visualize database table relationships and structures
-                </p>
+                <p className="text-sm text-gray-500">Visualize database table relationships and structures</p>
               </div>
             </div>
           </div>
-          
+
           {/* Controls */}
           <div className="flex items-center space-x-4">
             {/* Search */}
@@ -95,7 +97,7 @@ const Tables: React.FC = () => {
                 className="block w-64 pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            
+
             {/* Database Selector */}
             <div className="flex items-center space-x-2">
               <Filter className="h-4 w-4 text-gray-500" />
@@ -124,7 +126,7 @@ const Tables: React.FC = () => {
             <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto">
               <div className="p-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Available Databases</h3>
-                
+
                 {filteredDatabases.length === 0 ? (
                   <div className="text-center py-8">
                     <Database className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -151,13 +153,11 @@ const Tables: React.FC = () => {
                               </div>
                               <div className="flex justify-between text-sm text-gray-500">
                                 <span>Size:</span>
-                                <span className="font-medium">{db.dbSize}MB</span>
+                                <span className="font-medium">{db.dbSize} MB</span>
                               </div>
                               <div className="flex justify-between text-sm text-gray-500">
                                 <span>Updated:</span>
-                                <span className="font-medium">
-                                  {new Date(db.lastUpdated).toLocaleDateString()}
-                                </span>
+                                <span className="font-medium">{new Date(db.lastUpdated).toLocaleDateString()}</span>
                               </div>
                             </div>
                             {db.dbTag && (
@@ -180,7 +180,8 @@ const Tables: React.FC = () => {
                 <Network className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Database</h3>
                 <p className="text-gray-500 max-w-md">
-                  Choose a database from the sidebar to view its Entity Relationship Diagram and explore table relationships.
+                  Choose a database from the sidebar to view its Entity Relationship Diagram and explore table
+                  relationships.
                 </p>
               </div>
             </div>
@@ -201,7 +202,7 @@ const Tables: React.FC = () => {
                   <span className="text-gray-300">|</span>
                   <h2 className="text-lg font-medium text-gray-900">{selectedDatabase} ERD</h2>
                 </div>
-                
+
                 {erdData?.data && (
                   <div className="flex items-center space-x-6 text-sm">
                     <div className="text-center">
@@ -285,7 +286,7 @@ const Tables: React.FC = () => {
                       <span>Table Node</span>
                     </div>
                   </div>
-                  
+
                   <div className="text-xs text-gray-400">
                     Use mouse wheel to zoom • Drag to pan • Click and drag nodes to reposition
                   </div>
@@ -299,4 +300,4 @@ const Tables: React.FC = () => {
   );
 };
 
-export default Tables;
+export default Erd;

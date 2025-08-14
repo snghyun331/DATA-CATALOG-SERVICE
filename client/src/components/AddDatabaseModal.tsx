@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Database, Building2, Server, User, Lock, Tag } from 'lucide-react';
 
 interface AddDatabaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: DatabaseFormData) => void;
-  isLoading?: boolean; // 추가
+  isLoading?: boolean;
 }
 
 interface DatabaseFormData {
@@ -19,7 +19,12 @@ interface DatabaseFormData {
   dbTag: string;
 }
 
-const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ isOpen, onClose, onSubmit, isLoading = false }) => {
+const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  isLoading = false
+}) => {
   const [formData, setFormData] = useState<DatabaseFormData>({
     companyCode: '',
     companyName: '',
@@ -32,6 +37,23 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ isOpen, onClose, on
   });
 
   const [errors, setErrors] = useState<Partial<DatabaseFormData>>({});
+
+  // 모달이 닫힐 때만 폼 리셋
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({
+        companyCode: '',
+        companyName: '',
+        dbHost: '',
+        dbPort: 3306,
+        dbUser: '',
+        dbPw: '',
+        dbName: '',
+        dbTag: 'production',
+      });
+      setErrors({});
+    }
+  }, [isOpen]);
 
   const handleInputChange = (field: keyof DatabaseFormData, value: string | number) => {
     setFormData((prev) => ({
@@ -68,34 +90,11 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ isOpen, onClose, on
 
     if (validateForm()) {
       onSubmit(formData);
-      // Reset form
-      setFormData({
-        companyCode: '',
-        companyName: '',
-        dbHost: '',
-        dbPort: 3306,
-        dbUser: '',
-        dbPw: '',
-        dbName: '',
-        dbTag: 'production',
-      });
-      setErrors({});
-      onClose();
+      // 폼 리셋과 모달 닫기는 부모 컴포넌트에서 성공 시에만 처리
     }
   };
 
   const handleClose = () => {
-    setFormData({
-      companyCode: '',
-      companyName: '',
-      dbHost: '',
-      dbPort: 3306,
-      dbUser: '',
-      dbPw: '',
-      dbName: '',
-      dbTag: 'production',
-    });
-    setErrors({});
     onClose();
   };
 

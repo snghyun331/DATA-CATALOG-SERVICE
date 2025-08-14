@@ -10,7 +10,7 @@ import { useAddDatabase } from '../hooks/useDatabase.query';
 import LoadingOverlay from '../components/LoadingOverlay';
 import NotificationModal from '../components/NotificationModal';
 
-const Overview: React.FC = () => {
+const Home: React.FC = () => {
   const navigate = useNavigate();
   const { data: dashboardData, isLoading, error } = useDashboardOverview();
   const addDatabaseMutation = useAddDatabase();
@@ -79,14 +79,23 @@ const Overview: React.FC = () => {
         message: `Database "${formData.dbName}" has been successfully added to your system.`,
       });
     } catch (error: any) {
-      // 실패 처리
+      // 실패 처리 - 에러 발생 시 모달을 닫지 않음
+      const statusCode = error?.response?.status;
+      let errorMessage = 'An unexpected error occurred while adding the database. Please check your connection settings and try again.';
+      
+      if (statusCode === 400 && error?.response?.data?.details?.[0]?.error?.[0]) {
+        // 400 에러이고 details가 있는 경우 첫 번째 validation 에러 메시지 사용
+        errorMessage = error.response.data.details[0].error[0];
+      } else if (error?.response?.data?.message) {
+        // 일반적인 에러 메시지
+        errorMessage = error.response.data.message;
+      }
+      
       setNotification({
         isOpen: true,
         type: 'error',
         title: 'Failed to Add Database',
-        message:
-          error?.response?.data?.message ||
-          'An unexpected error occurred while adding the database. Please check your connection settings and try again.',
+        message: errorMessage,
       });
     } finally {
       setIsLoadingVisible(false);
@@ -121,8 +130,12 @@ const Overview: React.FC = () => {
           />
 
           <StatsCard
-            value={totalStats.totalRows?.toString() || '0'}
-            label="Total Rows"
+            value={
+              totalStats.totalTableCount && totalStats.totalTableCount > 0 
+                ? Math.round(totalStats.totalRows / totalStats.totalTableCount).toString()
+                : '0'
+            }
+            label="Average Rows"
             icon={<HardDrive className="text-purple-500" size={18} />}
             change={12}
             changeType="increase"
@@ -188,7 +201,7 @@ const Overview: React.FC = () => {
               databases={dbStats.map((db) => ({
                 name: db.dbName,
                 tables: db.tableCount,
-                size: `${db.dbSize}MB`,
+                size: `${db.dbSize} MB`,
                 lastUpdate: new Date(db.lastUpdated).toLocaleString(),
                 status: db.dbTag,
               }))}
@@ -221,4 +234,4 @@ const Overview: React.FC = () => {
   );
 };
 
-export default Overview;
+export default Home;

@@ -82,7 +82,7 @@ const TableCatalog: React.FC = () => {
   const columnStats = {
     totalColumns: stats.totalColumns,
     totalRecords: stats.totalRecords,
-    tableSize: `${stats.tableSize}MB`,
+    tableSize: `${stats.tableSize} MB`,
     primaryKeys: columns.filter((col: any) => col.COLUMN_KEY === 'PRI').length,
     nullableColumns: columns.filter((col: any) => col.IS_NULLABLE === 'YES').length,
     requiredColumns: columns.filter((col: any) => col.IS_NULLABLE === 'NO').length,
@@ -116,7 +116,7 @@ const TableCatalog: React.FC = () => {
         <ol className="flex items-center space-x-4">
           <li>
             <div>
-              <button onClick={() => navigate('/overview')} className="text-gray-400 hover:text-gray-500">
+              <button onClick={() => navigate('/home')} className="text-gray-400 hover:text-gray-500">
                 <svg className="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
                 </svg>
@@ -134,7 +134,7 @@ const TableCatalog: React.FC = () => {
                 />
               </svg>
               <button
-                onClick={() => navigate('/overview')}
+                onClick={() => navigate('/home')}
                 className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
               >
                 Databases
@@ -198,27 +198,29 @@ const TableCatalog: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center">
-              <FileText className="w-5 h-5 text-blue-600 mr-2" />
+              <FileText className="w-5 h-5 text-blue-600 mr-3" />
               <div>
                 <div className="text-sm text-blue-600 mb-1">Total Columns</div>
-                <div className="text-2xl font-bold text-blue-900">{columnStats.totalColumns}</div>
+                <div className="text-2xl font-bold text-blue-900">{columnStats.totalColumns.toLocaleString()}</div>
               </div>
             </div>
           </div>
 
           <div className="bg-green-50 rounded-lg p-4">
             <div className="flex items-center">
-              <Database className="w-5 h-5 text-green-600 mr-2" />
+              <Database className="w-5 h-5 text-green-600 mr-3" />
               <div>
                 <div className="text-sm text-green-600 mb-1">Total Records</div>
-                <div className="text-2xl font-bold text-green-900">{columnStats.totalRecords.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-green-900">
+                  {Number(columnStats.totalRecords).toLocaleString()}
+                </div>
               </div>
             </div>
           </div>
 
           <div className="bg-purple-50 rounded-lg p-4">
             <div className="flex items-center">
-              <Info className="w-5 h-5 text-purple-600 mr-2" />
+              <Info className="w-5 h-5 text-purple-600 mr-3" />
               <div>
                 <div className="text-sm text-purple-600 mb-1">Table Size</div>
                 <div className="text-2xl font-bold text-purple-900">{columnStats.tableSize}</div>
@@ -228,10 +230,10 @@ const TableCatalog: React.FC = () => {
 
           <div className="bg-yellow-50 rounded-lg p-4">
             <div className="flex items-center">
-              <Key className="w-5 h-5 text-yellow-600 mr-2" />
+              <Key className="w-5 h-5 text-yellow-600 mr-3" />
               <div>
                 <div className="text-sm text-yellow-600 mb-1">Primary Keys</div>
-                <div className="text-2xl font-bold text-yellow-900">{columnStats.primaryKeys}</div>
+                <div className="text-2xl font-bold text-yellow-900">{columnStats.primaryKeys.toLocaleString()}</div>
               </div>
             </div>
           </div>

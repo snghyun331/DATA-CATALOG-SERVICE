@@ -4,7 +4,7 @@ export interface Database {
   tables: number;
   size: string;
   lastUpdate: string;
-  status: "active" | "maintenance";
+  status: 'active' | 'maintenance';
 }
 
 // Table Types
@@ -26,7 +26,7 @@ export interface HeaderProps {
   selectedDB: Database | null;
 }
 
-export interface OverviewProps {
+export interface HomeProps {
   databases: Database[];
   onDBSelect: (db: Database) => void;
 }
@@ -45,7 +45,7 @@ export interface StatsCardProps {
   value: string;
   label: string;
   change: string;
-  changeType: "positive" | "negative" | "warning" | "info";
+  changeType: 'positive' | 'negative' | 'warning' | 'info';
   icon: React.ReactNode;
 }
 
