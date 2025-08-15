@@ -14,5 +14,4 @@ export const DatabaseApi = {
   updateColumnNote: (dbName: string, tableName: string, columnName: string, note: string) =>
     apiClient.patch(`databases/${dbName}/tables/${tableName}/columns/${columnName}/note`, { note }), // body로 전송
 
-  checkDatabaseDiff: (dbName: string) => apiClient.get(`databases/${dbName}/diff`),
 };

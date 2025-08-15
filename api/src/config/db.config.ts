@@ -12,7 +12,7 @@ export class ConnectDBConfig {
   async getDBConfig(companyCode: string) {
     try {
       const dbConnection = await this.firebaseService.getDbConnection(companyCode);
-      
+
       return {
         host: dbConnection.dbHost,
         port: dbConnection.dbPort,

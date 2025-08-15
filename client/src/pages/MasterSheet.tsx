@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Database, FileText, HardDrive, Clock } from 'lucide-react';
-import { useDatabaseCatalog, useDatabaseDiff, useDatabaseStats, useTableDescription } from '../hooks/useDatabase.query';
-import EditableDescription from './EditDescription';
-import DatabaseDiff from '../components/DatabaseDiff';
+import { Table, Database, FileText, HardDrive, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { useDatabaseCatalog, useDatabaseStats, useTableDescription } from '../hooks/useDatabase.query';
+import { useCompanies } from '../hooks/useDashboard.query';
 import { useQueryClient } from '@tanstack/react-query';
+import EditableDescription from './EditDescription';
+import apiClient from '../api/apiClient';
 
 interface TableData {
   tableName: string;
@@ -18,16 +19,91 @@ interface TableData {
 const MasterSheet: React.FC = () => {
   const { dbName } = useParams<{ dbName: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient(); // 이 줄 추가
-
   // API 호출
   const { data: databaseStats, isLoading: statsLoading, error: statsError } = useDatabaseStats(dbName!);
   const { data: tablesData, isLoading: tablesLoading, error: tablesError } = useDatabaseCatalog(dbName!);
   const updateDescriptionMutation = useTableDescription();
-  const { data: diffData, isLoading: diffLoading } = useDatabaseDiff(dbName!);
-  // const updateSchemaMutation = useUpdateDatabaseSchema();
+  const { data: companiesData } = useCompanies();
+  const queryClient = useQueryClient();
 
-  const [isDismissed, setIsDismissed] = useState(false);
+  // 변화 감지 상태
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isCheckingChanges, setIsCheckingChanges] = useState(false);
+  const [changeDetails, setChangeDetails] = useState<any>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // 변화 감지 확인
+  useEffect(() => {
+    const checkChanges = async () => {
+      if (!dbName) return;
+
+      setIsCheckingChanges(true);
+      try {
+        const response = await apiClient.get(`/databases/${dbName}/diff`);
+        const diffData = response.data;
+        setHasChanges(diffData.changed);
+        setChangeDetails(diffData);
+      } catch (error) {
+        console.error(`Error checking changes for ${dbName}:`, error);
+        setHasChanges(false);
+      } finally {
+        setIsCheckingChanges(false);
+      }
+    };
+
+    checkChanges();
+  }, [dbName]);
+
+  // 수동 변화 감지 확인
+  const handleRefreshChanges = async () => {
+    if (!dbName) return;
+
+    setIsCheckingChanges(true);
+    try {
+      const response = await apiClient.get(`/databases/${dbName}/diff`);
+      const diffData = response.data;
+      setHasChanges(diffData.changed);
+      setChangeDetails(diffData);
+    } catch (error) {
+      console.error(`Error checking changes for ${dbName}:`, error);
+    } finally {
+      setIsCheckingChanges(false);
+    }
+  };
+
+  // 카탈로그 업데이트
+  const handleUpdateCatalog = async () => {
+    if (!dbName) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // 카탈로그 업데이트 - PUT /api/v1/databases/{dbName}
+      console.log(`Calling PUT /databases/${dbName}`);
+      const updateResponse = await apiClient.put(`/databases/${dbName}`);
+      console.log('Update response:', updateResponse);
+
+      // 업데이트 후 관련 쿼리 무효화하여 새로고침
+      await queryClient.invalidateQueries({ queryKey: ['database-catalog', dbName] });
+      await queryClient.invalidateQueries({ queryKey: ['database-stats', dbName] });
+      
+      // 변화 감지 재확인
+      const diffResponse = await apiClient.get(`/databases/${dbName}/diff`);
+      const diffData = diffResponse.data;
+      setHasChanges(diffData.changed);
+      setChangeDetails(diffData);
+
+      // 성공 알림
+      console.log('카탈로그 업데이트가 완료되었습니다.');
+      
+    } catch (error) {
+      console.error(`Error updating catalog for ${dbName}:`, error);
+      console.error('Error details:', error.response?.data);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // 로딩 상태
   if (statsLoading || tablesLoading) {
@@ -44,39 +120,6 @@ const MasterSheet: React.FC = () => {
       tableName,
       description: newDescription,
     });
-  };
-
-  const handleDismissNotification = () => {
-    setIsDismissed(true);
-  };
-
-  const handleUpdateSchema = () => {
-    // updateSchemaMutation.mutate(dbName!, {
-    //   onSuccess: () => {
-    //     setIsDismissed(true);
-    //   },
-    //   onError: (error) => {
-    //     console.error('Schema update failed:', error);
-    //   },
-    // });
-    // 실제 업데이트 API가 없다면 단순히 diff 데이터만 새로고침
-    queryClient.invalidateQueries({ queryKey: ['database-diff', dbName] });
-    queryClient.invalidateQueries({ queryKey: ['database-catalog', dbName] });
-    setIsDismissed(true);
-  };
-
-  // MasterSheet.tsx의 hasTableChanges 함수 수정
-  const hasTableChanges = (tableName: string) => {
-    if (!diffData?.data) return false;
-
-    const diff = diffData.data;
-    return (
-      diff.tables.added.some((item: any) => item.table === tableName) ||
-      diff.tables.deleted.some((item: any) => item.table === tableName) ||
-      diff.columns.added.some((item: any) => item.table === tableName) ||
-      diff.columns.deleted.some((item: any) => item.table === tableName) ||
-      diff.columns.updated.some((item: any) => item.table === tableName)
-    );
   };
 
   const dbStats = databaseStats?.data;
@@ -163,7 +206,6 @@ const MasterSheet: React.FC = () => {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{dbStats.dbName}</h2>
-              <p className="text-sm text-gray-500">Database Overview</p>
             </div>
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -226,19 +268,99 @@ const MasterSheet: React.FC = () => {
       {/* Tables List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
             <h3 className="text-lg font-semibold text-gray-900">Tables ({masterSheetData.length})</h3>
+            {hasChanges && changeDetails && (
+              <div className="flex items-center space-x-1 relative group">
+                <AlertCircle className="text-orange-500 cursor-pointer" size={18} />
+                <span className="text-orange-500 text-sm font-medium cursor-pointer">업데이트가 필요합니다!</span>
 
-            {/* Database Diff Component */}
-            {diffData?.data && !isDismissed && (
-              <DatabaseDiff
-                isVisible={diffData.data.changed}
-                diffData={diffData.data}
-                onUpdate={handleUpdateSchema}
-                onDismiss={handleDismissNotification}
-                // isUpdating={updateSchemaMutation.isPending}
-                isUpdating={false}
-              />
+                {/* 툴팁 */}
+                <div className="absolute top-full left-0 mt-2 p-4 bg-white border border-gray-200 rounded-lg shadow-lg z-10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[300px]">
+                  <div className="text-sm">
+                    <h4 className="font-semibold text-gray-900 mb-2">변화 감지 상세 내용</h4>
+
+                    {/* 테이블 변화 */}
+                    {(changeDetails.tables.added.length > 0 || changeDetails.tables.deleted.length > 0) && (
+                      <div className="mb-3">
+                        <h5 className="font-medium text-gray-700 mb-1">테이블 변화</h5>
+                        {changeDetails.tables.added.length > 0 && (
+                          <div className="text-green-600 text-xs">
+                            • 추가된 테이블: {changeDetails.tables.added.length}개
+                          </div>
+                        )}
+                        {changeDetails.tables.deleted.length > 0 && (
+                          <div className="text-red-600 text-xs">
+                            • 삭제된 테이블: {changeDetails.tables.deleted.length}개
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 컬럼 변화 */}
+                    {(changeDetails.columns.added.length > 0 ||
+                      changeDetails.columns.deleted.length > 0 ||
+                      changeDetails.columns.updated.length > 0) && (
+                      <div className="mb-3">
+                        <h5 className="font-medium text-gray-700 mb-1">컬럼 변화</h5>
+                        {changeDetails.columns.added.length > 0 && (
+                          <div className="text-green-600 text-xs">
+                            • 추가된 컬럼: {changeDetails.columns.added.length}개
+                          </div>
+                        )}
+                        {changeDetails.columns.deleted.length > 0 && (
+                          <div className="text-red-600 text-xs">
+                            • 삭제된 컬럼: {changeDetails.columns.deleted.length}개
+                          </div>
+                        )}
+                        {changeDetails.columns.updated.length > 0 && (
+                          <div className="text-blue-600 text-xs">
+                            • 수정된 컬럼: {changeDetails.columns.updated.length}개
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 변화가 없는 경우 */}
+                    {changeDetails.tables.added.length === 0 &&
+                      changeDetails.tables.deleted.length === 0 &&
+                      changeDetails.columns.added.length === 0 &&
+                      changeDetails.columns.deleted.length === 0 &&
+                      changeDetails.columns.updated.length === 0 && (
+                        <div className="text-gray-500 text-xs">구체적인 변화 내용을 확인 중입니다...</div>
+                      )}
+                  </div>
+
+                  {/* 업데이트 버튼 */}
+                  <div className="border-t border-gray-200 pt-3 mt-3">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        handleUpdateCatalog();
+                      }}
+                      disabled={isUpdating}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white text-sm font-medium rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isUpdating ? (
+                        <>
+                          <RefreshCw className="animate-spin" size={16} />
+                          <span>업데이트 중...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw size={16} />
+                          <span>카탈로그 업데이트</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 툴팁 화살표 */}
+                  <div className="absolute -top-2 left-4 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -268,21 +390,13 @@ const MasterSheet: React.FC = () => {
               {masterSheetData.map((table, index) => (
                 <tr
                   key={index}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                    hasTableChanges(table.tableName) ? 'bg-amber-25 border-l-2 border-l-amber-300' : ''
-                  }`}
+                  className="hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => handleTableClick(table.tableName)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <Table className="mr-3 text-blue-500" size={16} />
                       <span className="font-medium text-gray-900">{table.tableName}</span>
-                      {hasTableChanges(table.tableName) && (
-                        <div
-                          className="ml-2 w-1.5 h-1.5 bg-amber-500 rounded-full"
-                          title="This table has changes"
-                        ></div>
-                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{table.columns}</td>

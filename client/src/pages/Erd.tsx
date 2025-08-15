@@ -30,10 +30,6 @@ const Erd: React.FC = () => {
     enabled: selectedDatabase !== 'all' && selectedDatabase !== '',
   });
 
-  // API 응답 구조 확인을 위한 로깅
-  console.log('Dashboard Data:', dashboardData);
-  console.log('Data Structure:', dashboardData?.data);
-
   // 다양한 응답 구조에 대응
   let databases = [];
   if (dashboardData?.data?.data?.dbStats) {
@@ -43,8 +39,6 @@ const Erd: React.FC = () => {
   } else if (dashboardData?.data) {
     databases = dashboardData.data;
   }
-
-  console.log('Databases:', databases);
 
   const filteredDatabases = databases.filter(
     (db: any) => searchTerm === '' || db.dbName.toLowerCase().includes(searchTerm.toLowerCase()),

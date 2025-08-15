@@ -54,12 +54,14 @@ interface ERDVisualizationProps {
 
 // 커스텀 테이블 노드 컴포넌트
 const TableNodeComponent = ({ data }: { data: any }) => {
-  const borderClass = data.isSelected 
-    ? "border-red-500 border-4 shadow-2xl" 
-    : "border-blue-300 border-2 shadow-xl hover:border-blue-400";
-    
+  const borderClass = data.isSelected
+    ? 'border-red-500 border-4 shadow-2xl'
+    : 'border-blue-300 border-2 shadow-xl hover:border-blue-400';
+
   return (
-    <div className={`bg-white rounded-lg min-w-[180px] max-w-[240px] relative group transition-all duration-300 ${borderClass}`}>
+    <div
+      className={`bg-white rounded-lg min-w-[180px] max-w-[240px] relative group transition-all duration-300 ${borderClass}`}
+    >
       {/* ReactFlow Handle 컴포넌트 - 명시적 연결점 */}
       <Handle
         type="target"
@@ -121,7 +123,6 @@ const TableNodeComponent = ({ data }: { data: any }) => {
         </div>
       </div>
 
-
       {/* Keys Section */}
       {((data.primaryKeys && data.primaryKeys.length > 0) || (data.foreignKeys && data.foreignKeys.length > 0)) && (
         <div className="px-4 py-3 border-b bg-gray-50">
@@ -135,20 +136,20 @@ const TableNodeComponent = ({ data }: { data: any }) => {
               ))}
             </div>
           )}
-          
+
           {/* Separator between PK and FK */}
           {data.primaryKeys && data.primaryKeys.length > 0 && data.foreignKeys && data.foreignKeys.length > 0 && (
             <div className="flex-1 h-px bg-gray-300 mb-2"></div>
           )}
-          
+
           {/* Foreign Keys (excluding those that are also Primary Keys) */}
           {data.foreignKeys && data.foreignKeys.length > 0 && (
             <div className="space-y-0.5">
               {data.foreignKeys
                 .filter((fk: any) => !data.primaryKeys?.includes(fk.column))
                 .map((fk: any, index: number) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="text-xs text-gray-800 font-mono"
                     title={`References: ${fk.referencedTable}.${fk.referencedColumn}`}
                   >
@@ -185,89 +186,82 @@ const ERDVisualization: React.FC<ERDVisualizationProps> = ({ erdData }) => {
     const nodeWidth = 300;
     const nodeHeight = 200;
     const spacing = 60;
-    
+
     // 연결 관계 맵 생성
     const connectionMap = new Map<string, Set<string>>();
-    tables.forEach(table => {
+    tables.forEach((table) => {
       connectionMap.set(table.name, new Set<string>());
     });
-    
-    relationships.forEach(rel => {
+
+    relationships.forEach((rel) => {
       if (connectionMap.has(rel.from) && connectionMap.has(rel.to)) {
         connectionMap.get(rel.from)!.add(rel.to);
         connectionMap.get(rel.to)!.add(rel.from);
       }
     });
-    
+
     // 클러스터링: 연결된 테이블들을 그룹화
     const visited = new Set<string>();
     const clusters: string[][] = [];
-    
-    tables.forEach(table => {
+
+    tables.forEach((table) => {
       if (!visited.has(table.name)) {
         const cluster: string[] = [];
         const queue = [table.name];
-        
+
         while (queue.length > 0) {
           const current = queue.shift()!;
           if (visited.has(current)) continue;
-          
+
           visited.add(current);
           cluster.push(current);
-          
+
           // 연결된 테이블들을 같은 클러스터에 추가
           const connections = connectionMap.get(current) || new Set();
-          connections.forEach(connected => {
+          connections.forEach((connected) => {
             if (!visited.has(connected)) {
               queue.push(connected);
             }
           });
         }
-        
+
         if (cluster.length > 0) {
           clusters.push(cluster);
         }
       }
     });
-    
-    // 디버깅: 클러스터 정보 출력
-    console.log('🔗 Found clusters:', clusters.map((cluster, index) => ({ 
-      id: index, 
-      size: cluster.length, 
-      tables: cluster 
-    })));
-    
+
     // 클러스터별로 위치 배정
-    const positions = new Map<string, {x: number, y: number}>();
+    const positions = new Map<string, { x: number; y: number }>();
     let currentY = 100;
-    
+
     clusters.forEach((cluster, clusterIndex) => {
       const clusterCols = Math.ceil(Math.sqrt(cluster.length));
       let currentX = 100;
-      
+
       cluster.forEach((tableName, index) => {
         const row = Math.floor(index / clusterCols);
         const col = index % clusterCols;
-        
+
         const x = currentX + col * (nodeWidth + spacing);
         const y = currentY + row * (nodeHeight + spacing);
-        
+
         positions.set(tableName, { x, y });
       });
-      
+
       // 다음 클러스터는 오른쪽으로 이동
       const clusterWidth = clusterCols * (nodeWidth + spacing);
       currentX += clusterWidth + spacing;
-      
+
       // 클러스터가 너무 오른쪽으로 가면 다음 줄로
       if (currentX > 1200) {
         currentY += Math.ceil(cluster.length / clusterCols) * (nodeHeight + spacing) + spacing;
         currentX = 100;
       }
     });
-    
+
     // 테이블 순서대로 위치 반환
-    return tables.map(table => {
+    return tables.map((table) => {
       const pos = positions.get(table.name);
       return pos || { x: 100, y: 100 };
     });
@@ -323,8 +317,9 @@ const ERDVisualization: React.FC<ERDVisualizationProps> = ({ erdData }) => {
         relationshipGroups.get(key)!.push(rel);
       });
 
-    const validEdges = Array.from(relationshipGroups.entries()).map(([key, relationships], groupIndex) => {
-      const rel = relationships[0]; // 첫 번째 관계를 대표로 사용
+    const validEdges = Array.from(relationshipGroups.entries())
+      .map(([key, relationships], groupIndex) => {
+        const rel = relationships[0]; // 첫 번째 관계를 대표로 사용
         // 유효한 테이블에서 매칭 찾기
         const sourceTable = validTables.find((t) => t.name === rel.from);
         const targetTable = validTables.find((t) => t.name === rel.to);
@@ -353,7 +348,8 @@ const ERDVisualization: React.FC<ERDVisualizationProps> = ({ erdData }) => {
         // 기본 연결점 사용
 
         // 선택된 노드와 연결된 엣지인지 확인
-        const isConnectedToSelected = selectedNodeId && (sourceNodeId === selectedNodeId || targetNodeId === selectedNodeId);
+        const isConnectedToSelected =
+          selectedNodeId && (sourceNodeId === selectedNodeId || targetNodeId === selectedNodeId);
         const strokeWidth = isConnectedToSelected ? 5 : 2;
         const strokeColor = isConnectedToSelected ? '#16A34A' : '#3B82F6'; // 진한 연두색 vs 파란색
 
@@ -383,7 +379,7 @@ const ERDVisualization: React.FC<ERDVisualizationProps> = ({ erdData }) => {
           },
           data: {
             // 모든 관계 정보를 저장
-            relationships: relationships.map(r => ({
+            relationships: relationships.map((r) => ({
               constraint: r.constraintName,
               fromColumn: r.fromColumn,
               toColumn: r.toColumn,
@@ -421,8 +417,7 @@ const ERDVisualization: React.FC<ERDVisualizationProps> = ({ erdData }) => {
 
   // 노드 클릭 핸들러
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    console.log('🔍 Node clicked:', node.id);
-    setSelectedNodeId(prevSelected => {
+    setSelectedNodeId((prevSelected) => {
       // 같은 노드를 다시 클릭하면 선택 해제
       if (prevSelected === node.id) {
         return null;
@@ -437,28 +432,32 @@ const ERDVisualization: React.FC<ERDVisualizationProps> = ({ erdData }) => {
   }, []);
 
   // 엣지 호버 핸들러 (선택된 노드의 연두색 엣지만 대상)
-  const onEdgeMouseEnter = useCallback((event: React.MouseEvent, edge: any) => {
-    // 선택된 노드와 연결된 엣지인지 확인
-    const isConnectedToSelected = selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId);
-    
-    if (isConnectedToSelected) {
-      // ReactFlow 컨테이너의 바운딩 박스를 가져와서 상대 좌표로 변환
-      const reactFlowBounds = (event.target as Element).closest('.react-flow')?.getBoundingClientRect();
-      const containerX = reactFlowBounds?.left || 0;
-      const containerY = reactFlowBounds?.top || 0;
-      
-      // 마우스 위치를 컨테이너 기준 좌표로 변환
-      const relativeX = event.clientX - containerX;
-      const relativeY = event.clientY - containerY;
-      
-      setHoveredEdge({
-        id: edge.id,
-        x: relativeX,
-        y: relativeY,
-        data: edge.data
-      });
-    }
-  }, [selectedNodeId]);
+  const onEdgeMouseEnter = useCallback(
+    (event: React.MouseEvent, edge: any) => {
+      // 선택된 노드와 연결된 엣지인지 확인
+      const isConnectedToSelected =
+        selectedNodeId && (edge.source === selectedNodeId || edge.target === selectedNodeId);
+
+      if (isConnectedToSelected) {
+        // ReactFlow 컨테이너의 바운딩 박스를 가져와서 상대 좌표로 변환
+        const reactFlowBounds = (event.target as Element).closest('.react-flow')?.getBoundingClientRect();
+        const containerX = reactFlowBounds?.left || 0;
+        const containerY = reactFlowBounds?.top || 0;
+
+        // 마우스 위치를 컨테이너 기준 좌표로 변환
+        const relativeX = event.clientX - containerX;
+        const relativeY = event.clientY - containerY;
+
+        setHoveredEdge({
+          id: edge.id,
+          x: relativeX,
+          y: relativeY,
+          data: edge.data,
+        });
+      }
+    },
+    [selectedNodeId],
+  );
 
   const onEdgeMouseLeave = useCallback(() => {
     setHoveredEdge(null);

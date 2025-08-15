@@ -4,7 +4,7 @@ import StatsCard from '../components/StatsCard';
 import DatabaseList from '../components/DatabaseList';
 import { Database, Table, HardDrive, Zap, Plus, Calendar } from 'lucide-react';
 import type { Database as DatabaseType } from '../App';
-import { useDashboardOverview } from '../hooks/useDashboard.query';
+import { useDashboardOverview, useCompanies } from '../hooks/useDashboard.query';
 import AddDatabaseModal from '../components/AddDatabaseModal';
 import { useAddDatabase } from '../hooks/useDatabase.query';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -13,6 +13,7 @@ import NotificationModal from '../components/NotificationModal';
 const Home: React.FC = () => {
   const navigate = useNavigate();
   const { data: dashboardData, isLoading, error } = useDashboardOverview();
+  const { data: companiesData } = useCompanies(); // company 데이터 미리 로드
   const addDatabaseMutation = useAddDatabase();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +29,7 @@ const Home: React.FC = () => {
     title: '',
     message: '',
   });
+
 
   const handleDBSelect = (db: DatabaseType): void => {
     navigate(`/database/${db.name}`);
@@ -81,8 +83,9 @@ const Home: React.FC = () => {
     } catch (error: any) {
       // 실패 처리 - 에러 발생 시 모달을 닫지 않음
       const statusCode = error?.response?.status;
-      let errorMessage = 'An unexpected error occurred while adding the database. Please check your connection settings and try again.';
-      
+      let errorMessage =
+        'An unexpected error occurred while adding the database. Please check your connection settings and try again.';
+
       if (statusCode === 400 && error?.response?.data?.details?.[0]?.error?.[0]) {
         // 400 에러이고 details가 있는 경우 첫 번째 validation 에러 메시지 사용
         errorMessage = error.response.data.details[0].error[0];
@@ -90,7 +93,7 @@ const Home: React.FC = () => {
         // 일반적인 에러 메시지
         errorMessage = error.response.data.message;
       }
-      
+
       setNotification({
         isOpen: true,
         type: 'error',
@@ -105,6 +108,9 @@ const Home: React.FC = () => {
   const closeNotification = () => {
     setNotification((prev) => ({ ...prev, isOpen: false }));
   };
+
+
+
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -131,7 +137,7 @@ const Home: React.FC = () => {
 
           <StatsCard
             value={
-              totalStats.totalTableCount && totalStats.totalTableCount > 0 
+              totalStats.totalTableCount && totalStats.totalTableCount > 0
                 ? Math.round(totalStats.totalRows / totalStats.totalTableCount).toString()
                 : '0'
             }
@@ -169,7 +175,7 @@ const Home: React.FC = () => {
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add Database
+                데이터베이스 추가
               </button>
             )}
           </div>
@@ -193,7 +199,7 @@ const Home: React.FC = () => {
                 className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-lg hover:shadow-xl"
               >
                 <Plus className="w-6 h-6 mr-3" />
-                Add Database
+                데이터베이스 추가
               </button>
             </div>
           ) : (
@@ -230,6 +236,7 @@ const Home: React.FC = () => {
         title={notification.title}
         message={notification.message}
       />
+
     </div>
   );
 };

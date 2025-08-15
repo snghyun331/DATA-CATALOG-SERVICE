@@ -78,9 +78,9 @@ export class CatalogController {
     return response;
   }
 
-  @Put(':companyCode')
-  async updateCatalog(@Param('companyCode') companyCode: string): Promise<ResponseInterface> {
-    await this.catalogService.updateCatalog(companyCode);
+  @Put(':dbName')
+  async updateCatalog(@Param('dbName') dbName: string): Promise<ResponseInterface> {
+    await this.catalogService.updateCatalog(dbName);
 
     const response: ResponseInterface = { message: 'succeses' };
 

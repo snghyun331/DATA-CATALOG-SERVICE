@@ -54,6 +54,7 @@ const DatabaseList: React.FC<DatabaseListProps> = ({ databases, onDBSelect }) =>
                   {db.status}
                 </div>
               </div>
+
             </div>
           ))}
         </div>

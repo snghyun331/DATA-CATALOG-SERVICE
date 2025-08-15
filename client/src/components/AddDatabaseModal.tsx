@@ -19,12 +19,7 @@ interface DatabaseFormData {
   dbTag: string;
 }
 
-const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  isLoading = false
-}) => {
+const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ isOpen, onClose, onSubmit, isLoading = false }) => {
   const [formData, setFormData] = useState<DatabaseFormData>({
     companyCode: '',
     companyName: '',
@@ -125,7 +120,7 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
           <div className="space-y-4">
             <h4 className="text-md font-medium text-gray-900 flex items-center">
               <Building2 className="w-4 h-4 mr-2 text-gray-600" />
-              Company Information
+              고객사 정보
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -163,7 +158,7 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
           <div className="space-y-4">
             <h4 className="text-md font-medium text-gray-900 flex items-center">
               <Server className="w-4 h-4 mr-2 text-gray-600" />
-              Database Connection
+              데이터베이스 연결 정보
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -266,11 +261,9 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
                       errors.dbTag ? 'border-red-300' : 'border-gray-300'
                     }`}
                   >
-                    <option value="production">Production</option>
-                    <option value="development">Development</option>
-                    <option value="staging">Staging</option>
-                    <option value="backup">Backup</option>
-                    <option value="test">Test</option>
+                    <option value="production">운영</option>
+                    <option value="development">테스트</option>
+                    <option value="backup">백업</option>
                   </select>
                 </div>
                 {errors.dbTag && <p className="mt-1 text-sm text-red-600">{errors.dbTag}</p>}
@@ -285,14 +278,14 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({
               onClick={handleClose}
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
             >
-              Cancel
+              취소하기
             </button>
             <button
               type="submit"
               disabled={isLoading}
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
             >
-              {isLoading ? 'Adding...' : 'Add Database'}
+              {isLoading ? '등록 중 입니다...' : '등록하기'}
             </button>
           </div>
         </form>

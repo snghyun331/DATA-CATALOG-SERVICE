@@ -343,15 +343,20 @@ export class CatalogService {
     return result;
   }
 
-  async updateCatalog(companyCode: string) {
+  async updateCatalog(dbName: string) {
+    const companyCode: string = await this.companyService.getCompanyCodeByDbName(dbName);
     const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+    console.log('*******************');
+    console.log(dbConfig);
 
     /* DB로부터 Catalog 정보 불러오기 & 모두 firebase에 저장 */
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
+    console.log('&&&&&&&&&&&&&&&&&&');
     try {
       // catalog 정보 불러오기
       const tableRows = await this.catalogRepository.getTableCatalogInDb(dbConfig.dbName, connection);
       const masterRows = await this.catalogRepository.getMasterCatalogInDb(dbConfig.dbName, connection);
+      console.log(masterRows);
       // table / master row 재구성
       const finalTableRows = await this.updateTableRows(tableRows);
       const finalMasterRows = await this.updateMasterRows(tableRows, masterRows);
