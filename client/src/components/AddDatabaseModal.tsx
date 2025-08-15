@@ -105,8 +105,8 @@ const AddDatabaseModal: React.FC<AddDatabaseModalProps> = ({ isOpen, onClose, on
               <Database className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Add New Database</h3>
-              <p className="text-sm text-gray-500">Connect a new database to your system</p>
+              <h3 className="text-lg font-semibold text-gray-900">새 데이터베이스 추가</h3>
+              <p className="text-sm text-gray-500">시스템에 등록할 새 데이터베이스 정보를 입력합니다.</p>
             </div>
           </div>
           <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 transition-colors">

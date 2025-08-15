@@ -72,8 +72,8 @@ const Erd: React.FC = () => {
             <div className="flex items-center space-x-3">
               <Network className="h-6 w-6 text-blue-600" />
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">Entity Relationship Diagrams</h1>
-                <p className="text-sm text-gray-500">Visualize database table relationships and structures</p>
+                <h1 className="text-xl font-semibold text-gray-900">데이터베이스 관계도(ERD)</h1>
+                <p className="text-sm text-gray-500">데이터베이스 테이블 관계와 구조를 시각화합니다</p>
               </div>
             </div>
           </div>
@@ -187,13 +187,6 @@ const Erd: React.FC = () => {
             <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => setSelectedDatabase('all')}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    ← Back to Database List
-                  </button>
-                  <span className="text-gray-300">|</span>
                   <h2 className="text-lg font-medium text-gray-900">{selectedDatabase} ERD</h2>
                 </div>
 
@@ -233,12 +226,6 @@ const Erd: React.FC = () => {
                     <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Failed to Load ERD</h3>
                     <p className="text-red-600 mb-4">Error: {(erdError as Error).message}</p>
-                    <button
-                      onClick={() => setSelectedDatabase('all')}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Back to Database List
-                    </button>
                   </div>
                 </div>
               ) : erdData?.data ? (
@@ -249,12 +236,6 @@ const Erd: React.FC = () => {
                     <Database className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No ERD Data Available</h3>
                     <p className="text-gray-600 mb-4">No table relationships found for {selectedDatabase}</p>
-                    <button
-                      onClick={() => setSelectedDatabase('all')}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Back to Database List
-                    </button>
                   </div>
                 </div>
               )}
