@@ -256,9 +256,9 @@ export class CatalogService {
       },
       columns: {
         changed: false,
-        added: [] as { table: string }[],
-        deleted: [] as { table: string }[],
-        updated: [] as { table: string }[],
+        added: [] as { table: string; columns: string[] }[],
+        deleted: [] as { table: string; columns: string[] }[],
+        updated: [] as { table: string; columns: string[] }[],
       },
     };
 
@@ -294,7 +294,7 @@ export class CatalogService {
         // ▶ 컬럼 추가
         const added = newColNames.filter((name) => !oldColNames.includes(name));
         if (added.length > 0) {
-          result.columns.added.push({ table: tableName });
+          result.columns.added.push({ table: tableName, columns: added });
           result.columns.changed = true;
           result.changed = true;
         }
@@ -302,7 +302,7 @@ export class CatalogService {
         // ▶ 컬럼 삭제
         const deleted = oldColNames.filter((name) => !newColNames.includes(name));
         if (deleted.length > 0) {
-          result.columns.deleted.push({ table: tableName });
+          result.columns.deleted.push({ table: tableName, columns: deleted });
           result.columns.changed = true;
           result.changed = true;
         }
@@ -317,7 +317,7 @@ export class CatalogService {
         });
 
         if (updated.length > 0) {
-          result.columns.updated.push({ table: tableName });
+          result.columns.updated.push({ table: tableName, columns: updated });
           result.columns.changed = true;
           result.changed = true;
         }
@@ -343,32 +343,72 @@ export class CatalogService {
     return result;
   }
 
-  async updateCatalog(dbName: string) {
+  async updateCatalog(dbName: string, diffData?: any) {
     const companyCode: string = await this.companyService.getCompanyCodeByDbName(dbName);
     const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
-    console.log('*******************');
-    console.log(dbConfig);
 
     /* DB로부터 Catalog 정보 불러오기 & 모두 firebase에 저장 */
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
-    console.log('&&&&&&&&&&&&&&&&&&');
     try {
+      /* 삭제 로직 우선 처리 */
+      if (diffData) {
+        // 삭제된 테이블 처리
+        if (diffData.tables?.deleted?.length > 0) {
+          const tablesToDelete = diffData.tables.deleted.map((item) => item.table);
+          await Promise.all(
+            tablesToDelete.map(async (table: string) => {
+              await this.firebaseService.deleteSubDoc('masterCatalog', dbName, 'tables', table);
+              await this.firebaseService.deleteSubCollection('tableCatalog', dbName, table);
+            }),
+          );
+        }
+
+        // 삭제된 컬럼 처리 (삭제된 테이블의 컬럼은 제외)
+        if (diffData.columns?.deleted?.length > 0) {
+          const deletedTableNames = diffData.tables?.deleted?.map((item) => item.table) || [];
+
+          // 삭제된 테이블에 속하지 않은 컬럼들만 필터링
+          const columnsToDelete = diffData.columns.deleted
+            .filter((item) => !deletedTableNames.includes(item.table))
+            .flatMap((item) =>
+              item.columns.map((columnName) => ({
+                table: item.table,
+                column: columnName,
+              })),
+            );
+
+          console.log('columnsToDelete: ', columnsToDelete);
+          if (columnsToDelete.length > 0) {
+            await Promise.all(
+              columnsToDelete.map(async (columnToDelete) => {
+                const { table, column } = columnToDelete;
+
+                console.log('tableCatalog', dbName, table, column);
+                await this.firebaseService.deleteSubDoc('tableCatalog', dbName, table, column);
+                // await this.firebaseService.updateMasterCatalog(dbName, table);
+                // await this.firebaseService.updateLastUpdate(dbName);
+              }),
+            );
+          }
+        }
+      }
+
+      /* 삭제 외(추가,수정) 로직 처리 */
       // catalog 정보 불러오기
       const tableRows = await this.catalogRepository.getTableCatalogInDb(dbConfig.dbName, connection);
       const masterRows = await this.catalogRepository.getMasterCatalogInDb(dbConfig.dbName, connection);
-      console.log(masterRows);
       // table / master row 재구성
       const finalTableRows = await this.updateTableRows(tableRows);
       const finalMasterRows = await this.updateMasterRows(tableRows, masterRows);
-      // firebase에 저장
+      // firebase에 저장 (덮어쓰기 방식)
       const dbDataSize: number = await this.catalogRepository.getDatabaseDataSize(dbConfig.dbName, connection);
       await this.saveTableRowsInFirebase(finalTableRows);
       await this.saveMasterRowsInFirebase(finalMasterRows);
-      const dbName = dbConfig.dbName;
+      const finalDbName = dbConfig.dbName;
       const lastUpdated = new Date();
       const tableList = finalMasterRows.map((masterRow) => masterRow.TABLE_NAME);
       const totalRows = finalMasterRows.reduce((sum, item) => sum + item.TABLE_ROWS, 0);
-      await this.saveDatabaseInfo(dbName, dbDataSize, lastUpdated, tableList, totalRows);
+      await this.saveDatabaseInfo(finalDbName, dbDataSize, lastUpdated, tableList, totalRows);
       // 캐싱
     } catch (err) {
       this.logger.error(err);

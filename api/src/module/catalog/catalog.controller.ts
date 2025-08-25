@@ -4,6 +4,7 @@ import { ResponseInterface } from '../../common/interface/response.interface';
 import { CreateDbDto } from './dto/createDb.dto';
 import { UpdateColumnNoteDto } from './dto/updateColumnNote.dto';
 import { UpdateTableDescriptionDto } from './dto/updateTableDescription.dto';
+import { UpdateCatalogDto } from './dto/updateCatalog.dto';
 
 @Controller('api/v1/databases')
 export class CatalogController {
@@ -79,10 +80,13 @@ export class CatalogController {
   }
 
   @Put(':dbName')
-  async updateCatalog(@Param('dbName') dbName: string): Promise<ResponseInterface> {
-    await this.catalogService.updateCatalog(dbName);
+  async updateCatalog(
+    @Param('dbName') dbName: string,
+    @Body() { diffData }: UpdateCatalogDto,
+  ): Promise<ResponseInterface> {
+    await this.catalogService.updateCatalog(dbName, diffData);
 
-    const response: ResponseInterface = { message: 'succeses' };
+    const response: ResponseInterface = { message: 'success' };
 
     return response;
   }

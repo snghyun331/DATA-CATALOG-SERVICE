@@ -123,11 +123,26 @@ export class FirebaseService {
     const collection = 'dbConnections';
     const docId = companyCode;
     const docSnapshot = await this.firestore.collection(collection).doc(docId).get();
-    
+
     if (!docSnapshot.exists) {
       throw new Error(`DB connection info not found for company: ${companyCode}`);
     }
 
     return docSnapshot.data();
+  }
+
+  async deleteSubDoc(collection: string, docId: string, subCollection: string, subDocId: string): Promise<any> {
+    await this.firestore.collection(collection).doc(docId).collection(subCollection).doc(subDocId).delete();
+
+    return;
+  }
+
+  async deleteSubCollection(collection: string, docId: string, subCollection: string): Promise<any> {
+    const subCollectionRef = this.firestore.collection(collection).doc(docId).collection(subCollection);
+    const snapshot = await subCollectionRef.get();
+
+    await Promise.all(snapshot.docs.map((doc) => doc.ref.delete()));
+
+    return;
   }
 }

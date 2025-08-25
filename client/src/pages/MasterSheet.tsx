@@ -79,15 +79,17 @@ const MasterSheet: React.FC = () => {
 
     setIsUpdating(true);
     try {
-      // 카탈로그 업데이트 - PUT /api/v1/databases/{dbName}
-      console.log(`Calling PUT /databases/${dbName}`);
-      const updateResponse = await apiClient.put(`/databases/${dbName}`);
+      // 카탈로그 업데이트 - PUT /api/v1/databases/{dbName} with diffData
+      console.log(`Calling PUT /databases/${dbName} with diffData:`, changeDetails);
+      const updateResponse = await apiClient.put(`/databases/${dbName}`, {
+        diffData: changeDetails,
+      });
       console.log('Update response:', updateResponse);
 
       // 업데이트 후 관련 쿼리 무효화하여 새로고침
       await queryClient.invalidateQueries({ queryKey: ['database-catalog', dbName] });
       await queryClient.invalidateQueries({ queryKey: ['database-stats', dbName] });
-      
+
       // 변화 감지 재확인
       const diffResponse = await apiClient.get(`/databases/${dbName}/diff`);
       const diffData = diffResponse.data;
@@ -96,7 +98,6 @@ const MasterSheet: React.FC = () => {
 
       // 성공 알림
       console.log('카탈로그 업데이트가 완료되었습니다.');
-      
     } catch (error) {
       console.error(`Error updating catalog for ${dbName}:`, error);
       console.error('Error details:', error.response?.data);
@@ -305,17 +306,20 @@ const MasterSheet: React.FC = () => {
                         <h5 className="font-medium text-gray-700 mb-1">컬럼 변화</h5>
                         {changeDetails.columns.added.length > 0 && (
                           <div className="text-green-600 text-xs">
-                            • 추가된 컬럼: {changeDetails.columns.added.length}개
+                            • 추가된 컬럼:{' '}
+                            {changeDetails.columns.added.reduce((total, item) => total + item.columns.length, 0)}개
                           </div>
                         )}
                         {changeDetails.columns.deleted.length > 0 && (
                           <div className="text-red-600 text-xs">
-                            • 삭제된 컬럼: {changeDetails.columns.deleted.length}개
+                            • 삭제된 컬럼:{' '}
+                            {changeDetails.columns.deleted.reduce((total, item) => total + item.columns.length, 0)}개
                           </div>
                         )}
                         {changeDetails.columns.updated.length > 0 && (
                           <div className="text-blue-600 text-xs">
-                            • 수정된 컬럼: {changeDetails.columns.updated.length}개
+                            • 수정된 컬럼:{' '}
+                            {changeDetails.columns.updated.reduce((total, item) => total + item.columns.length, 0)}개
                           </div>
                         )}
                       </div>
