@@ -122,39 +122,33 @@ interface ResponseInterface {
 
 ## Firestore 컬렉션 구조
 
-### 현재 구조 (5개 컬렉션)
+### 현재 구조 (2개 컬렉션)
 
 ```
 Firestore
-├── dbConnections/{companyCode}           # DB 연결 정보
+├── dbConnections/{companyCode}           # DB 연결 정보 (암호화됨)
 │   ├── host, port, userName, password, dbName
 │
-├── company/{dbName}                      # 회사-DB 매핑
-│   ├── companyCode, companyName
-│
-├── database/{dbName}                     # DB 통계 (대시보드용)
-│   ├── tableList[], dbSize, totalRows, lastUpdated, dbTag
-│
-├── masterCatalog/{dbName}                # 테이블 목록
-│   └── tables/{tableName}                # 서브컬렉션
-│       ├── TABLE_SCHEMA, TABLE_NAME
-│       ├── TABLE_ROWS, TABLE_COLUMNS
-│       ├── TABLE_COMMENT, TABLE_DESCRIPTION
-│       ├── TABLE_SHEET, DATA_SIZE
-│
-└── tableCatalog/{dbName}                 # 컬럼 상세
-    └── {tableName}/{columnName}          # 서브컬렉션
-        ├── TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME
-        ├── COLUMN_DEFAULT, IS_NULLABLE
-        ├── COLUMN_TYPE, COLUMN_KEY
-        ├── COLUMN_COMMENT, COLUMN_NOTE
+└── databases/{dbName}                    # DB 정보 통합
+    ├── companyCode, companyName          # 회사 정보
+    ├── dbSize, totalRows, lastUpdated    # DB 통계
+    ├── tableList[], dbTag                # 메타데이터
+    │
+    └── tables/{tableName}                # 서브컬렉션: 테이블 정보
+        ├── rows, columns, size           # 테이블 통계
+        ├── comment, description, sheet   # 테이블 설명
+        │
+        └── columns/{columnName}          # 서브컬렉션: 컬럼 정보
+            ├── type, nullable, default   # 컬럼 스키마
+            ├── key, comment, note        # 컬럼 메타데이터
 ```
 
-### 알려진 문제점
+### 개선 사항
 
-1. **중복 필드**: `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`이 문서 경로와 중복 저장됨
-2. **컬렉션 분리 과다**: `database`, `masterCatalog`, `tableCatalog`가 분리되어 있어 여러 번 조회 필요
-3. **문서 ID 불일치**: `company` 컬렉션의 문서 ID가 `dbName`인데 회사 정보 저장
+1. **중복 필드 제거**: `TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`은 문서 경로에서 추출
+2. **컬렉션 통합**: `database`, `masterCatalog`, `tableCatalog`, `company` → `databases` 하나로 통합
+3. **일관된 필드명**: camelCase 사용 (rows, columns, size, type, nullable 등)
+4. **계층 구조 명확화**: databases → tables → columns 3단계 서브컬렉션
 
 ---
 
@@ -190,42 +184,34 @@ Firestore
 
 ---
 
-## 리팩토링 가이드
+## 데이터 마이그레이션 가이드
 
-### 주의사항
+### 기존 Firestore 데이터 마이그레이션
 
-1. **API 응답 형태 유지**: 프론트엔드 수정 없이 진행하려면 `ResponseInterface` 형태를 절대 변경하지 마세요
-2. **점진적 마이그레이션**: 한 번에 모든 것을 바꾸지 마세요. 컬렉션 하나씩 개선
-3. **백업 필수**: Firestore 데이터 Export 후 작업
+새로운 구조로 전환 시 기존 데이터 마이그레이션이 필요합니다:
 
-### 권장 개선 순서
+1. **기존 컬렉션 (삭제 대상)**
+   - `company/{dbName}` → `databases/{dbName}` 으로 통합
+   - `database/{dbName}` → `databases/{dbName}` 으로 통합
+   - `masterCatalog/{dbName}/tables/{tableName}` → `databases/{dbName}/tables/{tableName}` 으로 이동
+   - `tableCatalog/{dbName}/{tableName}/{columnName}` → `databases/{dbName}/tables/{tableName}/columns/{columnName}` 으로 이동
 
-1. **1단계 (낮은 위험)**
+2. **필드명 변환**
+   - `TABLE_ROWS` → `rows`
+   - `TABLE_COLUMNS` → `columns`
+   - `DATA_SIZE` → `size`
+   - `TABLE_COMMENT` → `comment`
+   - `TABLE_DESCRIPTION` → `description`
+   - `TABLE_SHEET` → `sheet`
+   - `COLUMN_TYPE` → `type`
+   - `IS_NULLABLE` → `nullable`
+   - `COLUMN_DEFAULT` → `default`
+   - `COLUMN_KEY` → `key`
+   - `COLUMN_COMMENT` → `comment`
+   - `COLUMN_NOTE` → `note`
 
-   - 중복 필드 제거 (`TABLE_SCHEMA`, `TABLE_NAME`, `COLUMN_NAME`)
-   - 저장 시 제거, 조회 시 경로에서 복원
-
-2. **2단계 (중간 위험)**
-
-   - `database` + `masterCatalog` + `tableCatalog` → `databases` 통합
-   - 새 컬렉션에 복사 → 읽기 전환 → 쓰기 전환 → 기존 삭제
-
-3. **3단계 (선택)**
-   - `company` → `companies` 구조 변경
-   - Repository 패턴 도입
-   - 타입 안전성 강화
-
-### 권장 Firestore 구조
-
-```
-databases/{dbName}
-├── companyCode
-├── dbSize, totalRows, lastUpdated, dbTag
-└── tables/{tableName}                    # 서브컬렉션
-    ├── rows, columns, size, comment, description
-    └── columns/{columnName}              # 서브컬렉션
-        ├── type, nullable, default, key, comment, note
-```
+3. **API 응답 호환성**
+   - 프론트엔드 변경 없이 작동하도록 조회 시 기존 필드명으로 변환하여 반환
 
 ---
 

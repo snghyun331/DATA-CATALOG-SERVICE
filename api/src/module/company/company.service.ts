@@ -3,21 +3,29 @@ import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class CompanyService {
-  constructor(private readonly firebaseServie: FirebaseService) {}
+  constructor(private readonly firebaseService: FirebaseService) {}
 
+  /**
+   * 모든 회사 목록 조회
+   * databases 컬렉션에서 companyCode, companyName 추출
+   */
   async getAllCompanies() {
-    const collection = 'company';
-    const snapshot = await this.firebaseServie.getCollectonData(collection);
-    const result = snapshot.docs.map((doc) => doc.data());
-
-    return result;
+    const databases = await this.firebaseService.getAllDatabases();
+    return databases.map(({ dbName, data }) => ({
+      companyCode: data.companyCode,
+      companyName: data.companyName,
+      dbName,
+    }));
   }
 
-  async getCompanyCodeByDbName(dbName: string) {
-    const collection = 'company';
-    const snapshot = await this.firebaseServie.getMainDocData(collection, dbName);
-    const data = snapshot.data();
-
+  /**
+   * DB명으로 회사 코드 조회
+   */
+  async getCompanyCodeByDbName(dbName: string): Promise<string> {
+    const data = await this.firebaseService.getDatabase(dbName);
+    if (!data) {
+      throw new Error(`Database not found: ${dbName}`);
+    }
     return data.companyCode;
   }
 }
