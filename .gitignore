@@ -53,6 +53,3 @@ redis-data/*
 
 # script.sh
 script.sh
-
-# claude
-CLAUDE.md

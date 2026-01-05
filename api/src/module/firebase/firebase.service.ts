@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as admin from 'firebase-admin';
 import { serviceAccount } from '../../config/firebase.config';
+import { decrypt, encrypt } from '../../common/utils/utility';
 
 @Injectable()
 export class FirebaseService {
@@ -114,7 +115,12 @@ export class FirebaseService {
   async saveDbConnection(companyCode: string, dbInfo: any): Promise<void> {
     const collection = 'dbConnections';
     const docId = companyCode;
-    await this.firestore.collection(collection).doc(docId).set(dbInfo, { merge: true });
+    // 비밀번호 암호화
+    const encryptedDbInfo = {
+      ...dbInfo,
+      password: encrypt(dbInfo.password),
+    };
+    await this.firestore.collection(collection).doc(docId).set(encryptedDbInfo, { merge: true });
 
     return;
   }
@@ -128,7 +134,12 @@ export class FirebaseService {
       throw new Error(`DB connection info not found for company: ${companyCode}`);
     }
 
-    return docSnapshot.data();
+    const data = docSnapshot.data();
+    // 민감정보 복호화
+    return {
+      ...data,
+      password: decrypt(data.password),
+    };
   }
 
   async deleteSubDoc(collection: string, docId: string, subCollection: string, subDocId: string): Promise<any> {

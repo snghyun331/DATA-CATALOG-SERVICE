@@ -1,5 +1,7 @@
 import { ENV_PATH } from '../constant/path';
 import * as fs from 'fs';
+import { AES, enc } from 'crypto-js';
+import { ConfigService } from '@nestjs/config';
 
 /* env파일에 value를 추가하는 함수 */
 export function updateEnvFile(values: object) {
@@ -19,3 +21,20 @@ export function updateEnvFile(values: object) {
 
   fs.writeFileSync(envPath, finalContent, { encoding: 'utf-8' });
 }
+
+// 민감정보 암호화
+export const encrypt = (originalText: string): string => {
+  const authKey: string = new ConfigService().get<string>('AES_SECRET_KEY');
+  const encryptedText: string = AES.encrypt(originalText, authKey).toString();
+
+  return encryptedText;
+};
+
+// 민감정보 복호화
+export const decrypt = (encryptedValue: string): string => {
+  const authKey: string = new ConfigService().get<string>('AES_SECRET_KEY');
+  const bytes = AES.decrypt(encryptedValue, authKey);
+  const decryptedText: string = bytes.toString(enc.Utf8);
+
+  return decryptedText;
+};

@@ -20,8 +20,8 @@ export class ConnectDBConfig {
         password: dbConnection.dbPw,
         dbName: dbConnection.dbName,
       };
-    } catch (error) {
-      // Fallback to .env if Firestore data not found
+    } catch (err) {
+      console.error(err);
       const prefix: string = `DB_${companyCode.toUpperCase()}`;
 
       return {
