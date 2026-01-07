@@ -53,13 +53,11 @@ export class CatalogService {
     }));
   }
 
-  /**
-   * 새 DB 등록 및 카탈로그 생성
-   */
+  /** 새 DB 등록 및 카탈로그 생성하는 함수 */
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
     const { companyCode, companyName, ...dbInfo } = dto;
 
-    // DB 연결 정보 저장 (dbConnections 컬렉션 - 유지)
+    // DB 연결 정보 저장 (dbConnections 컬렉션)
     await this.firebaseService.saveDbConnection(companyCode, dbInfo);
 
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);

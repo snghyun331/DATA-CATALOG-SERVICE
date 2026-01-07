@@ -22,6 +22,22 @@ export class FirebaseService {
     this.firestore = admin.firestore();
   }
 
+  /**
+   * Firestore Timestamp를 Date로 변환
+   */
+  private convertTimestamps<T>(data: T): T {
+    if (!data || typeof data !== 'object') return data;
+
+    const result = { ...data } as any;
+    for (const key of Object.keys(result)) {
+      const value = result[key];
+      if (value && typeof value === 'object' && '_seconds' in value && '_nanoseconds' in value) {
+        result[key] = new Date(value._seconds * 1000);
+      }
+    }
+    return result;
+  }
+
   // ============================================================
   // 새로운 통합 구조 메서드 (databases/{dbName}/tables/{tableName}/columns/{columnName})
   // ============================================================
@@ -38,7 +54,7 @@ export class FirebaseService {
    */
   async getDatabase(dbName: string): Promise<DatabaseDoc | null> {
     const doc = await this.firestore.collection(this.DATABASES_COLLECTION).doc(dbName).get();
-    return doc.exists ? (doc.data() as DatabaseDoc) : null;
+    return doc.exists ? this.convertTimestamps(doc.data() as DatabaseDoc) : null;
   }
 
   /**
@@ -48,7 +64,7 @@ export class FirebaseService {
     const snapshot = await this.firestore.collection(this.DATABASES_COLLECTION).get();
     return snapshot.docs.map((doc) => ({
       dbName: doc.id,
-      data: doc.data() as DatabaseDoc,
+      data: this.convertTimestamps(doc.data() as DatabaseDoc),
     }));
   }
 
@@ -234,9 +250,10 @@ export class FirebaseService {
   async saveDbConnection(companyCode: string, dbInfo: any): Promise<void> {
     const collection = 'dbConnections';
     const docId = companyCode;
+    const { dbPw, ...rest } = dbInfo;
     const encryptedDbInfo = {
-      ...dbInfo,
-      password: encrypt(dbInfo.password),
+      ...rest,
+      dbPw: encrypt(dbPw, this.configService),
     };
     await this.firestore.collection(collection).doc(docId).set(encryptedDbInfo, { merge: true });
   }
@@ -250,10 +267,10 @@ export class FirebaseService {
       throw new Error(`DB connection info not found for company: ${companyCode}`);
     }
 
-    const data = docSnapshot.data();
+    const { dbPw, ...rest } = docSnapshot.data();
     return {
-      ...data,
-      password: decrypt(data.password),
+      ...rest,
+      password: decrypt(dbPw, this.configService),
     };
   }
 

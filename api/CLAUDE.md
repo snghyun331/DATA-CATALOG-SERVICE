@@ -126,8 +126,9 @@ interface ResponseInterface {
 
 ```
 Firestore
-├── dbConnections/{companyCode}           # DB 연결 정보 (암호화됨)
-│   ├── host, port, userName, password, dbName
+├── dbConnections/{companyCode}           # DB 연결 정보
+│   ├── host, port, userName, dbName
+│   ├── dbPw                              # 암호화된 비밀번호
 │
 └── databases/{dbName}                    # DB 정보 통합
     ├── companyCode, companyName          # 회사 정보
@@ -142,6 +143,26 @@ Firestore
             ├── type, nullable, default   # 컬럼 스키마
             ├── key, comment, note        # 컬럼 메타데이터
 ```
+
+### 설계 결정: 왜 2개 컬렉션인가?
+
+초기에는 3개 컬렉션(`dbConnections`, `companies`, `databases`)을 고려했으나, 최종적으로 2개로 통합했습니다.
+
+**company를 별도 컬렉션으로 분리하지 않은 이유:**
+
+| 고려 사항        | 현재 상황                                   |
+| ---------------- | ------------------------------------------- |
+| DB와 회사 관계   | 1:1 (각 DB는 하나의 회사에 속함)            |
+| 회사 정보 복잡도 | 단순 (`companyCode`, `companyName` 두 필드) |
+| 조회 패턴        | DB 조회 시 항상 회사 정보도 필요            |
+
+별도 `companies` 컬렉션을 두면 DB 조회마다 추가 쿼리가 필요하고, 실질적 이점이 적습니다.
+
+**향후 별도 companies 컬렉션이 필요한 경우:**
+
+- 회사 정보가 복잡해질 때 (주소, 연락처, 계약정보 등)
+- 회사:DB가 1:N 관계로 확장될 때 (한 회사가 여러 DB 보유)
+- 회사 단위 권한/설정 관리가 필요할 때
 
 ### 개선 사항
 
@@ -184,34 +205,41 @@ Firestore
 
 ---
 
-## 데이터 마이그레이션 가이드
+## 환경 변수
 
-### 기존 Firestore 데이터 마이그레이션
+`.env` 파일 필요:
 
-새로운 구조로 전환 시 기존 데이터 마이그레이션이 필요합니다:
+```env
+# Firebase
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-client-email
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 
-1. **기존 컬렉션 (삭제 대상)**
-   - `company/{dbName}` → `databases/{dbName}` 으로 통합
-   - `database/{dbName}` → `databases/{dbName}` 으로 통합
-   - `masterCatalog/{dbName}/tables/{tableName}` → `databases/{dbName}/tables/{tableName}` 으로 이동
-   - `tableCatalog/{dbName}/{tableName}/{columnName}` → `databases/{dbName}/tables/{tableName}/columns/{columnName}` 으로 이동
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-2. **필드명 변환**
-   - `TABLE_ROWS` → `rows`
-   - `TABLE_COLUMNS` → `columns`
-   - `DATA_SIZE` → `size`
-   - `TABLE_COMMENT` → `comment`
-   - `TABLE_DESCRIPTION` → `description`
-   - `TABLE_SHEET` → `sheet`
-   - `COLUMN_TYPE` → `type`
-   - `IS_NULLABLE` → `nullable`
-   - `COLUMN_DEFAULT` → `default`
-   - `COLUMN_KEY` → `key`
-   - `COLUMN_COMMENT` → `comment`
-   - `COLUMN_NOTE` → `note`
+# 암호화 (DB 비밀번호 암호화에 사용)
+AES_SECRET_KEY=your-secret-key-min-32-chars
 
-3. **API 응답 호환성**
-   - 프론트엔드 변경 없이 작동하도록 조회 시 기존 필드명으로 변환하여 반환
+# 서버
+PORT=3000
+```
+
+---
+
+## 개발 명령어
+
+```bash
+# 개발 서버 실행
+npm run start:dev
+
+# 빌드
+npm run build
+
+# 프로덕션 실행
+npm run start
+```
 
 ---
 

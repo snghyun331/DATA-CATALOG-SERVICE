@@ -17,20 +17,11 @@ export class ConnectDBConfig {
         host: dbConnection.dbHost,
         port: dbConnection.dbPort,
         userName: dbConnection.dbUser,
-        password: dbConnection.dbPw,
+        password: dbConnection.password,
         dbName: dbConnection.dbName,
       };
     } catch (err) {
       console.error(err);
-      const prefix: string = `DB_${companyCode.toUpperCase()}`;
-
-      return {
-        host: this.configService.get<string>(`${prefix}_HOST`),
-        port: this.configService.get<number>(`${prefix}_PORT`),
-        userName: this.configService.get<string>(`${prefix}_USER`),
-        password: this.configService.get<string>(`${prefix}_PW`),
-        dbName: this.configService.get<string>(`${prefix}_NAME`),
-      };
     }
   }
 }

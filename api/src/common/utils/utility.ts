@@ -23,18 +23,17 @@ export function updateEnvFile(values: object) {
 }
 
 // 민감정보 암호화
-export const encrypt = (originalText: string): string => {
-  const authKey: string = new ConfigService().get<string>('AES_SECRET_KEY');
+export const encrypt = (originalText: string, configService: ConfigService): string => {
+  const authKey = configService.get<string>('AES_SECRET_KEY');
   const encryptedText: string = AES.encrypt(originalText, authKey).toString();
 
   return encryptedText;
 };
 
 // 민감정보 복호화
-export const decrypt = (encryptedValue: string): string => {
-  const authKey: string = new ConfigService().get<string>('AES_SECRET_KEY');
+export const decrypt = (encryptedValue: string, configService: ConfigService): string => {
+  const authKey: string = configService.get<string>('AES_SECRET_KEY');
   const bytes = AES.decrypt(encryptedValue, authKey);
   const decryptedText: string = bytes.toString(enc.Utf8);
-
   return decryptedText;
 };
