@@ -16,10 +16,10 @@ export class CatalogRepository {
   async getConnectionToDB(companyCode: string): Promise<PoolConnection> {
     try {
       const pool = await this.getPool(companyCode);
+
       return pool.getConnection();
     } catch (error) {
-      console.error(`Failed to connect to DB for ${companyCode}:`, error);
-      throw new Error(`Database connection failed for ${companyCode}: ${error.message}`);
+      throw new Error(`Mysql DB 연결이 실패되었습니다 - ${companyCode}: ${error.message}`);
     }
   }
 
@@ -46,9 +46,12 @@ export class CatalogRepository {
   }
 
   async getTableCatalogInDb(dbName: string, connection: PoolConnection) {
-    const query = `SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
+    const query = `
+      SELECT 
+      TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = '${dbName}' 
+      ORDER BY TABLE_NAME`;
 
     const [rows] = await connection.query(query);
 
@@ -56,9 +59,12 @@ export class CatalogRepository {
   }
 
   async getMasterCatalogInDb(dbName: string, connection: PoolConnection) {
-    const query = `SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, ROUND((DATA_LENGTH / 1024 / 1024),2) as DATA_SIZE
-        FROM information_schema.TABLES
-        WHERE TABLE_SCHEMA = '${dbName}' ORDER BY TABLE_NAME`;
+    const query = `
+      SELECT 
+      TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, ROUND((DATA_LENGTH / 1024 / 1024),2) as DATA_SIZE
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = '${dbName}' 
+      ORDER BY TABLE_NAME`;
 
     const [rows] = await connection.query(query);
 
@@ -66,9 +72,11 @@ export class CatalogRepository {
   }
 
   async getDatabaseDataSize(dbName: string, connection: PoolConnection): Promise<number> {
-    const query = `SELECT ROUND(SUM(DATA_LENGTH) / 1024 / 1024, 2) AS DB_DATA_SIZE
-        FROM information_schema.TABLES
-        WHERE TABLE_SCHEMA = '${dbName}'`;
+    const query = `
+      SELECT 
+      ROUND(SUM(DATA_LENGTH) / 1024 / 1024, 2) AS DB_DATA_SIZE
+      FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = '${dbName}'`;
 
     const [rows] = await connection.query(query);
 
@@ -78,14 +86,9 @@ export class CatalogRepository {
   async getForeignKeyRelations(dbName: string, connection: PoolConnection) {
     const query = `
       SELECT 
-        TABLE_NAME,
-        COLUMN_NAME,
-        CONSTRAINT_NAME,
-        REFERENCED_TABLE_NAME,
-        REFERENCED_COLUMN_NAME
+      TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
       FROM information_schema.KEY_COLUMN_USAGE
-      WHERE TABLE_SCHEMA = '${dbName}'
-        AND REFERENCED_TABLE_NAME IS NOT NULL
+      WHERE TABLE_SCHEMA = '${dbName}' AND REFERENCED_TABLE_NAME IS NOT NULL
       ORDER BY TABLE_NAME, COLUMN_NAME
     `;
 
@@ -97,12 +100,9 @@ export class CatalogRepository {
   async getPrimaryKeys(dbName: string, connection: PoolConnection) {
     const query = `
       SELECT 
-        TABLE_NAME,
-        COLUMN_NAME,
-        CONSTRAINT_NAME
+      TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
       FROM information_schema.KEY_COLUMN_USAGE
-      WHERE TABLE_SCHEMA = '${dbName}'
-        AND CONSTRAINT_NAME = 'PRIMARY'
+      WHERE TABLE_SCHEMA = '${dbName}' AND CONSTRAINT_NAME = 'PRIMARY'
       ORDER BY TABLE_NAME, ORDINAL_POSITION
     `;
 

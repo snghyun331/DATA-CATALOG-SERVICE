@@ -1,9 +1,8 @@
 import { ConflictException, Inject, Injectable, Logger, LoggerService } from '@nestjs/common';
 import { CatalogRepository } from './repository/catalog.repository';
-import { ConnectDBConfig } from '../../config/db.config';
 import { FirebaseService } from '../firebase/firebase.service';
 import { CreateDbDto } from './dto/createDb.dto';
-import { TableColumns } from './interface/catalog.interface';
+import { MasterCatalog, TableCatalog, TableColumns } from './interface/catalog.interface';
 import { DatabaseDoc, TableDoc, ColumnDoc } from './interface/database.interface';
 
 @Injectable()
@@ -12,16 +11,13 @@ export class CatalogService {
     @Inject(Logger)
     private readonly logger: LoggerService,
     private readonly catalogRepository: CatalogRepository,
-    private readonly connectDBConfig: ConnectDBConfig,
     private readonly firebaseService: FirebaseService,
   ) {}
 
-  /**
-   * 마스터 카탈로그 조회 (테이블 목록)
-   * 기존 응답 형태 유지: TABLE_SCHEMA, TABLE_NAME 등의 필드 포함
-   */
-  async getMasterCatalog(dbName: string) {
-    const tables = await this.firebaseService.getAllTables(dbName);
+  /* 마스터 카탈로그를 조회하는 함수 */
+  async getMasterCatalog(dbName: string): Promise<MasterCatalog[]> {
+    const tables: { tableName: string; data: TableDoc }[] = await this.firebaseService.getAllTables(dbName);
+
     return tables.map(({ tableName, data }) => ({
       TABLE_SCHEMA: dbName,
       TABLE_NAME: tableName,
@@ -29,17 +25,17 @@ export class CatalogService {
       TABLE_COLUMNS: data.columns,
       TABLE_COMMENT: data.comment,
       TABLE_DESCRIPTION: data.description,
-      TABLE_SHEET: data.sheet || '',
       DATA_SIZE: data.size,
     }));
   }
 
-  /**
-   * 테이블 카탈로그 조회 (컬럼 목록)
-   * 기존 응답 형태 유지
-   */
-  async getTableCatalog(dbName: string, tableName: string) {
-    const columns = await this.firebaseService.getAllColumns(dbName, tableName);
+  /* 테이블 카탈로그를 조회하는 함수 */
+  async getTableCatalog(dbName: string, tableName: string): Promise<TableCatalog[]> {
+    const columns: { columnName: string; data: ColumnDoc }[] = await this.firebaseService.getAllColumns(
+      dbName,
+      tableName,
+    );
+
     return columns.map(({ columnName, data }) => ({
       TABLE_SCHEMA: dbName,
       TABLE_NAME: tableName,
@@ -53,22 +49,21 @@ export class CatalogService {
     }));
   }
 
-  /** 새 DB 등록 및 카탈로그 생성하는 함수 */
+  /* 새 DB 등록 및 카탈로그 생성하는 함수 */
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
     const { companyCode, companyName, ...dbInfo } = dto;
 
     // DB 연결 정보 저장 (dbConnections 컬렉션)
     await this.firebaseService.saveDbConnection(companyCode, dbInfo);
-
     const connection = await this.catalogRepository.getConnectionToDB(companyCode);
     try {
       // 이미 같은 DB가 저장되었다면 예외처리
-      const isCatalogExist = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
+      const isCatalogExist: boolean = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
       if (isCatalogExist) {
         throw new ConflictException('해당 DB는 이미 추가되었습니다.');
       }
 
-      // MySQL에서 카탈로그 정보 조회
+      // mysql에서 최신 카탈로그 정보 조회
       const tableRows = (await this.catalogRepository.getTableCatalogInDb(dbInfo.dbName, connection)) as any[];
       const masterRows = (await this.catalogRepository.getMasterCatalogInDb(dbInfo.dbName, connection)) as any[];
       const dbDataSize = await this.catalogRepository.getDatabaseDataSize(dbInfo.dbName, connection);
@@ -88,7 +83,7 @@ export class CatalogService {
         totalRows,
         lastUpdated: new Date(),
         tableList,
-        ...(dto.dbTag && { dbTag: dto.dbTag }),
+        dbTag: dto.dbTag,
       };
       await this.firebaseService.saveDatabase(dbInfo.dbName, databaseDoc);
 
@@ -102,9 +97,6 @@ export class CatalogService {
     }
   }
 
-  /**
-   * 테이블 및 컬럼 데이터 저장
-   */
   private async saveTablesAndColumns(
     dbName: string,
     masterRows: any[],
@@ -126,8 +118,8 @@ export class CatalogService {
           size: Number(masterRow.DATA_SIZE),
           comment: masterRow.TABLE_COMMENT || '',
           description: '',
-          sheet: '',
         };
+
         await this.firebaseService.saveTable(dbName, tableName, tableDoc);
 
         // 해당 테이블의 컬럼들 저장
@@ -142,6 +134,7 @@ export class CatalogService {
               comment: col.COLUMN_COMMENT || '',
               note: '',
             };
+
             await this.firebaseService.saveColumn(dbName, tableName, col.COLUMN_NAME, columnDoc);
           }),
         );
@@ -149,21 +142,18 @@ export class CatalogService {
     );
   }
 
-  /**
-   * 컬럼 수 계산
-   */
+  /* 컬럼 수 계산 */
   private calculateColumnCount(tableRows: any[]): Record<string, number> {
     const count: Record<string, number> = {};
     tableRows.forEach((row: any) => {
       const key = `${row.TABLE_SCHEMA}.${row.TABLE_NAME}`;
       count[key] = (count[key] || 0) + 1;
     });
+
     return count;
   }
 
-  /**
-   * 테이블별 컬럼 그룹화
-   */
+  /* 테이블별 컬럼 그룹화 */
   private groupColumnsByTable(tableRows: any[]): Record<string, any[]> {
     const grouped: Record<string, any[]> = {};
     tableRows.forEach((row: any) => {
@@ -172,16 +162,15 @@ export class CatalogService {
       }
       grouped[row.TABLE_NAME].push(row);
     });
+
     return grouped;
   }
 
-  /**
-   * 스키마 변경 감지
-   */
+  /* 스키마 변경을 감지하는 함수 */
   async detectChanges(dbName: string) {
     const dbData = await this.firebaseService.getDatabase(dbName);
     if (!dbData) {
-      throw new Error(`Database not found: ${dbName}`);
+      throw new Error(`Database를 찾을 수 없습니다: ${dbName}`);
     }
 
     const companyCode = dbData.companyCode;
@@ -225,9 +214,7 @@ export class CatalogService {
     }
   }
 
-  /**
-   * 스키마 비교
-   */
+  /* 스키마를 비교하는 함수 */
   private compareSchemas(newSchema: TableColumns[], oldSchema: TableColumns[]) {
     const result = {
       changed: false,
@@ -304,9 +291,7 @@ export class CatalogService {
     return result;
   }
 
-  /**
-   * 테이블명으로 그룹화
-   */
+  /* 테이블명으로 그룹화 */
   private groupByTableName(schema: TableColumns[]): Record<string, TableColumns[]> {
     const result: Record<string, TableColumns[]> = {};
     schema.forEach((row) => {
@@ -318,13 +303,10 @@ export class CatalogService {
     return result;
   }
 
-  /**
-   * 카탈로그 업데이트
-   */
   async updateCatalog(dbName: string, diffData?: any) {
     const dbData = await this.firebaseService.getDatabase(dbName);
     if (!dbData) {
-      throw new Error(`Database not found: ${dbName}`);
+      throw new Error(`Database를 찾을 수 없습니다: ${dbName}`);
     }
 
     const companyCode = dbData.companyCode;
@@ -358,7 +340,7 @@ export class CatalogService {
         }
       }
 
-      // MySQL에서 최신 스키마 조회
+      // mysql에서 최신 정보 조회
       const tableRows = (await this.catalogRepository.getTableCatalogInDb(dbName, connection)) as any[];
       const masterRows = (await this.catalogRepository.getMasterCatalogInDb(dbName, connection)) as any[];
       const dbDataSize = await this.catalogRepository.getDatabaseDataSize(dbName, connection);
@@ -379,7 +361,7 @@ export class CatalogService {
       };
       await this.firebaseService.saveDatabase(dbName, databaseDoc as DatabaseDoc);
 
-      // 테이블 및 컬럼 저장 (기존 description, note는 유지)
+      // 테이블 및 컬럼 저장
       await this.updateTablesAndColumns(dbName, masterRows, tableRows, tableColumnCount);
     } catch (err) {
       this.logger.error(err);
@@ -389,9 +371,7 @@ export class CatalogService {
     }
   }
 
-  /**
-   * 테이블 및 컬럼 업데이트 (기존 사용자 입력 필드 유지)
-   */
+  /* 테이블 및 컬럼 업데이트 */
   private async updateTablesAndColumns(
     dbName: string,
     masterRows: any[],
@@ -414,7 +394,6 @@ export class CatalogService {
           size: Number(masterRow.DATA_SIZE),
           comment: masterRow.TABLE_COMMENT || '',
           description: existingTable?.description || '',
-          sheet: existingTable?.sheet || '',
         };
         await this.firebaseService.saveTable(dbName, tableName, tableDoc);
 
@@ -440,23 +419,15 @@ export class CatalogService {
     );
   }
 
-  /**
-   * 컬럼 노트 업데이트
-   */
   async updateColumnNote(dbName: string, tableName: string, columnName: string, note: string): Promise<void> {
-    await this.firebaseService.updateColumnNoteNew(dbName, tableName, columnName, note);
+    await this.firebaseService.updateColumnNote(dbName, tableName, columnName, note);
   }
 
-  /**
-   * 테이블 설명 업데이트
-   */
   async updateTableDescription(dbName: string, tableName: string, description: string): Promise<void> {
-    await this.firebaseService.updateTableDescriptionNew(dbName, tableName, description);
+    await this.firebaseService.updateTableDescription(dbName, tableName, description);
   }
 
-  /**
-   * DB 목록 조회
-   */
+  /* DB 목록을 조회하는 함수 */
   async getDbList() {
     const databases = await this.firebaseService.getAllDatabases();
 
@@ -473,13 +444,11 @@ export class CatalogService {
     );
   }
 
-  /**
-   * DB 통계 조회
-   */
+  /* DB 통계를 조회하는 함수 */
   async getDbStats(dbName: string) {
     const data = await this.firebaseService.getDatabase(dbName);
     if (!data) {
-      throw new Error(`Database not found: ${dbName}`);
+      throw new Error(`Database를 찾을 수 없습니다: ${dbName}`);
     }
 
     return {
@@ -492,13 +461,11 @@ export class CatalogService {
     };
   }
 
-  /**
-   * 테이블 통계 조회
-   */
+  /* 테이블 통계를 조회하는 함수 */
   async getTableStats(dbName: string, tableName: string) {
     const table = await this.firebaseService.getTable(dbName, tableName);
     if (!table) {
-      throw new Error(`Table not found: ${tableName}`);
+      throw new Error(`Table을 찾을 수 없습니다: ${tableName}`);
     }
 
     return {
@@ -508,13 +475,11 @@ export class CatalogService {
     };
   }
 
-  /**
-   * ERD 데이터 조회
-   */
+  /* ERD 데이터를 조회하는 함수 */
   async getDatabaseERD(dbName: string) {
     const dbData = await this.firebaseService.getDatabase(dbName);
     if (!dbData) {
-      throw new Error(`Database not found: ${dbName}`);
+      throw new Error(`Database를 찾을 수 없습니다: ${dbName}`);
     }
 
     const companyCode = dbData.companyCode;
@@ -580,14 +545,13 @@ export class CatalogService {
     }
   }
 
-  /**
-   * 회사 코드로 DB명 조회 (CompanyService 대체)
-   */
+  /* 회사 코드로 DB명을 조회하는 함수 */
   async getCompanyCodeByDbName(dbName: string): Promise<string> {
-    const data = await this.firebaseService.getDatabase(dbName);
+    const data: DatabaseDoc = await this.firebaseService.getDatabase(dbName);
     if (!data) {
-      throw new Error(`Database not found: ${dbName}`);
+      throw new Error(`Database를 찾을 수 없습니다: ${dbName}`);
     }
+
     return data.companyCode;
   }
 }

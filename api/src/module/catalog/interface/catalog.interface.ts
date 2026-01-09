@@ -8,3 +8,17 @@ export interface TableColumns {
   COLUMN_KEY: string;
   COLUMN_COMMENT: string;
 }
+
+export interface MasterCatalog {
+  TABLE_SCHEMA: string;
+  TABLE_NAME: string;
+  TABLE_ROWS: number;
+  TABLE_COLUMNS: number;
+  TABLE_COMMENT: string;
+  TABLE_DESCRIPTION: string;
+  DATA_SIZE: number;
+}
+
+export interface TableCatalog extends TableColumns {
+  COLUMN_NOTE: string;
+}
