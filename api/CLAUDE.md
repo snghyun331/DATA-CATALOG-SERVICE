@@ -205,29 +205,6 @@ Firestore
 
 ---
 
-## 환경 변수
-
-`.env` 파일 필요:
-
-```env
-# Firebase
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-client-email
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# 암호화 (DB 비밀번호 암호화에 사용)
-AES_SECRET_KEY=your-secret-key-min-32-chars
-
-# 서버
-PORT=3000
-```
-
----
-
 ## 개발 명령어
 
 ```bash
