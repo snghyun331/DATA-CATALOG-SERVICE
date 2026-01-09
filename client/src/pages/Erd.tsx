@@ -172,10 +172,10 @@ const Erd: React.FC = () => {
             <div className="flex-1 flex items-center justify-center bg-gray-50">
               <div className="text-center">
                 <Network className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Database</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">데이터베이스를 선택해주세요.</h3>
+                <br></br>
                 <p className="text-gray-500 max-w-md">
-                  Choose a database from the sidebar to view its Entity Relationship Diagram and explore table
-                  relationships.
+                  사이드바에서 데이터베이스를 선택하면 ER 다이어그램과 테이블 관계를 확인할 수 있습니다.
                 </p>
               </div>
             </div>
