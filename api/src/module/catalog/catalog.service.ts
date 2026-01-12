@@ -99,7 +99,7 @@ export class CatalogService {
     }
   }
 
-  /* 테이블 및 컬럼 데이터 조립 (저장 X) */
+  /* 테이블 및 컬럼 데이터 조립 */
   private buildTablesData(
     masterRows: any[],
     tableRows: any[],
@@ -373,7 +373,7 @@ export class CatalogService {
         tableList,
       };
 
-      // 테이블 및 컬럼 데이터 조립 (기존 description, note 유지)
+      // 테이블 및 컬럼 데이터 조립
       const tables = await this.buildTablesDataForUpdate(dbName, masterRows, tableRows, tableColumnCount);
 
       // Batch로 한 번에 업데이트
@@ -386,7 +386,7 @@ export class CatalogService {
     }
   }
 
-  /* 업데이트용 테이블 및 컬럼 데이터 조립 (기존 description, note 유지) */
+  /* 업데이트용 테이블 및 컬럼 데이터 조립 */
   private async buildTablesDataForUpdate(
     dbName: string,
     masterRows: any[],
@@ -411,7 +411,7 @@ export class CatalogService {
           description: existingTable?.description || '',
         };
 
-        // 컬럼 데이터 조립 (기존 note 유지)
+        // 컬럼 데이터 조립
         const columnsData = columnsByTable[tableName] || [];
         const columns = await Promise.all(
           columnsData.map(async (col: any) => {

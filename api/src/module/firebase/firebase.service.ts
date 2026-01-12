@@ -8,6 +8,7 @@ import { DatabaseDoc, TableDoc, ColumnDoc } from '../catalog/interface/database.
 @Injectable()
 export class FirebaseService {
   private firestore: admin.firestore.Firestore;
+  private readonly CONNECTIONS_COLLECTION = 'dbConnections';
   private readonly DATABASES_COLLECTION = 'databases';
   private readonly TABLES_SUBCOLLECTION = 'tables';
   private readonly COLUMNS_SUBCOLLECTION = 'columns';
@@ -196,7 +197,7 @@ export class FirebaseService {
       .update({ description });
   }
 
-  /* 데이터베이스의 모든 테이블 서브컬렉션 조회 (스키마 비교용) */
+  /* 데이터베이스의 모든 테이블 서브컬렉션 조회 */
   async getAllTableCollections(dbName: string): Promise<admin.firestore.CollectionReference[]> {
     return await this.firestore
       .collection(this.DATABASES_COLLECTION)
@@ -211,7 +212,6 @@ export class FirebaseService {
   // ============================================================
 
   async saveDbConnection(companyCode: string, dbInfo: any): Promise<void> {
-    const collection = 'dbConnections';
     const docId = companyCode;
     const { dbPw, ...rest } = dbInfo;
     const encryptedDbInfo = {
@@ -219,13 +219,12 @@ export class FirebaseService {
       dbPw: encrypt(dbPw, this.configService),
     };
 
-    await this.firestore.collection(collection).doc(docId).set(encryptedDbInfo, { merge: true });
+    await this.firestore.collection(this.CONNECTIONS_COLLECTION).doc(docId).set(encryptedDbInfo, { merge: true });
   }
 
   async getDbConnection(companyCode: string): Promise<any> {
-    const collection = 'dbConnections';
     const docId = companyCode;
-    const docSnapshot = await this.firestore.collection(collection).doc(docId).get();
+    const docSnapshot = await this.firestore.collection(this.CONNECTIONS_COLLECTION).doc(docId).get();
 
     if (!docSnapshot.exists) {
       throw new Error(`해당 고객사에 대한 dbConnection 정보가 없습니다: ${companyCode}`);
@@ -254,7 +253,7 @@ export class FirebaseService {
     const operations: { ref: admin.firestore.DocumentReference; data: any }[] = [];
 
     // dbConnection 문서 추가
-    const dbConnectionRef = this.firestore.collection('dbConnections').doc(companyCode);
+    const dbConnectionRef = this.firestore.collection(this.CONNECTIONS_COLLECTION).doc(companyCode);
     const { dbPw, ...rest } = dbConnectionData;
     const encryptedDbInfo = {
       ...rest,
