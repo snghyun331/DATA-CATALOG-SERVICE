@@ -27,6 +27,7 @@ export class CatalogRepository {
   private async getPool(companyCode: string): Promise<Pool> {
     if (!this.poolCache.has(companyCode)) {
       const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+      console.log('dbConfig', dbConfig);
 
       const pool = createPool({
         host: dbConfig.host,

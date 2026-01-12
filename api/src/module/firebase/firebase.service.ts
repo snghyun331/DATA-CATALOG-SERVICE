@@ -238,4 +238,77 @@ export class FirebaseService {
       password: decrypt(dbPw, this.configService),
     };
   }
+
+  // ============================================================
+  // Batch 관련 메서드
+  // ============================================================
+
+  /* Database + Tables + Columns를 Batch로 한 번에 저장 */
+  async saveDatabaseBatch(
+    dbName: string,
+    databaseDoc: DatabaseDoc,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): Promise<void> {
+    const operations = this.buildBatchOperations(dbName, databaseDoc, tables);
+    await this.executeBatchInChunks(operations);
+  }
+
+  /* 카탈로그 업데이트를 Batch로 처리 */
+  async updateCatalogBatch(
+    dbName: string,
+    databaseDoc: Partial<DatabaseDoc>,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): Promise<void> {
+    const operations = this.buildBatchOperations(dbName, databaseDoc as DatabaseDoc, tables);
+    await this.executeBatchInChunks(operations);
+  }
+
+  /* Batch 작업 목록 생성 */
+  private buildBatchOperations(
+    dbName: string,
+    databaseDoc: DatabaseDoc,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): { ref: admin.firestore.DocumentReference; data: any }[] {
+    const operations: { ref: admin.firestore.DocumentReference; data: any }[] = [];
+
+    // Database 문서
+    const dbRef = this.firestore.collection(this.DATABASES_COLLECTION).doc(dbName);
+    operations.push({ ref: dbRef, data: databaseDoc });
+
+    // Tables 및 Columns 문서
+    tables.forEach(({ tableName, tableDoc, columns }) => {
+      const tableRef = dbRef.collection(this.TABLES_SUBCOLLECTION).doc(tableName);
+      operations.push({ ref: tableRef, data: tableDoc });
+
+      columns.forEach(({ columnName, columnDoc }) => {
+        const columnRef = tableRef.collection(this.COLUMNS_SUBCOLLECTION).doc(columnName);
+        operations.push({ ref: columnRef, data: columnDoc });
+      });
+    });
+
+    return operations;
+  }
+
+  /* 500개씩 청크로 나눠서 Batch 실행 */
+  private async executeBatchInChunks(
+    operations: { ref: admin.firestore.DocumentReference; data: any }[],
+  ): Promise<void> {
+    const BATCH_LIMIT = 500;
+    const chunks = this.chunkArray(operations, BATCH_LIMIT);
+
+    for (const chunk of chunks) {
+      const batch = this.firestore.batch();
+      chunk.forEach(({ ref, data }) => batch.set(ref, data, { merge: true }));
+      await batch.commit();
+    }
+  }
+
+  /* 배열을 지정된 크기로 분할 */
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
 }
