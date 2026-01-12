@@ -53,17 +53,17 @@ export class CatalogService {
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
     const { companyCode, companyName, ...dbInfo } = dto;
 
-    // DB 연결 정보 저장 (dbConnections 컬렉션)
-    await this.firebaseService.saveDbConnection(companyCode, dbInfo);
-    const connection = await this.catalogRepository.getConnectionToDB(companyCode);
-    try {
-      // 이미 같은 DB가 저장되었다면 예외처리
-      const isCatalogExist: boolean = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
-      if (isCatalogExist) {
-        throw new ConflictException('해당 DB는 이미 추가되었습니다.');
-      }
+    // 이미 같은 DB가 저장되었다면 예외처리
+    const isCatalogExist: boolean = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
+    if (isCatalogExist) {
+      throw new ConflictException('해당 DB는 이미 추가되었습니다.');
+    }
 
-      // mysql에서 최신 카탈로그 정보 조회
+    // 1단계: dto로 직접 MySQL 연결
+    const connection = await this.catalogRepository.createDirectConnection(dbInfo);
+
+    try {
+      // 2단계: MySQL에서 카탈로그 정보 조회
       const tableRows = (await this.catalogRepository.getTableCatalogInDb(dbInfo.dbName, connection)) as any[];
       const masterRows = (await this.catalogRepository.getMasterCatalogInDb(dbInfo.dbName, connection)) as any[];
       const dbDataSize = await this.catalogRepository.getDatabaseDataSize(dbInfo.dbName, connection);
@@ -89,8 +89,8 @@ export class CatalogService {
       // 테이블 및 컬럼 데이터 조립
       const tables = this.buildTablesData(masterRows, tableRows, tableColumnCount);
 
-      // Batch로 한 번에 저장
-      await this.firebaseService.saveDatabaseBatch(dbInfo.dbName, databaseDoc, tables);
+      // 3단계: Batch로 dbConnection + database + tables + columns 한 번에 저장 (원자성 보장)
+      await this.firebaseService.saveAllBatch(companyCode, dbInfo, dbInfo.dbName, databaseDoc, tables);
     } catch (err) {
       this.logger.error(err);
       throw err;

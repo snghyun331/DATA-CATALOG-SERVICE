@@ -243,6 +243,32 @@ export class FirebaseService {
   // Batch 관련 메서드
   // ============================================================
 
+  /* dbConnection + Database + Tables + Columns를 Batch로 한 번에 저장 (원자성 보장) */
+  async saveAllBatch(
+    companyCode: string,
+    dbConnectionData: any,
+    dbName: string,
+    databaseDoc: DatabaseDoc,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): Promise<void> {
+    const operations: { ref: admin.firestore.DocumentReference; data: any }[] = [];
+
+    // dbConnection 문서 추가
+    const dbConnectionRef = this.firestore.collection('dbConnections').doc(companyCode);
+    const { dbPw, ...rest } = dbConnectionData;
+    const encryptedDbInfo = {
+      ...rest,
+      dbPw: encrypt(dbPw, this.configService),
+    };
+    operations.push({ ref: dbConnectionRef, data: encryptedDbInfo });
+
+    // Database + Tables + Columns 추가
+    const catalogOperations = this.buildBatchOperations(dbName, databaseDoc, tables);
+    operations.push(...catalogOperations);
+
+    await this.executeBatchInChunks(operations);
+  }
+
   /* Database + Tables + Columns를 Batch로 한 번에 저장 */
   async saveDatabaseBatch(
     dbName: string,

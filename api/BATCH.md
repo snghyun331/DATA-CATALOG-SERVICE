@@ -2,7 +2,7 @@
 
 ## 배경
 
-### 기존 문제점
+### 기존 문제점 1: 다수의 API 호출
 
 ```typescript
 // 개별 호출 - 각각 독립적인 API 요청
@@ -14,14 +14,59 @@ await this.firebaseService.saveColumn(...);     // M번 호출
 - 테이블 10개, 컬럼 100개면 → **111번 API 호출**
 - 중간에 실패하면 **일부만 저장된 상태** (데이터 정합성 문제)
 
-### 해결 방법: Batched Writes
+### 기존 문제점 2: dbConnection과 database 간 정합성 깨짐
 
-모든 쓰기 작업을 하나의 batch로 묶어서 한 번에 커밋합니다.
+```typescript
+async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
+  // 1. dbConnection 먼저 저장 (개별 저장)
+  await this.firebaseService.saveDbConnection(companyCode, dbInfo);  // ✅ 저장됨
+
+  // 2. Firestore에서 조회하여 MySQL 연결
+  const connection = await this.catalogRepository.getConnectionToDB(companyCode);
+
+  try {
+    // 3. 카탈로그 조회 및 저장
+    await this.firebaseService.saveDatabaseBatch(...);  // ❌ 여기서 에러 발생 시?
+  } catch (err) {
+    // dbConnection은 이미 저장됨, database는 저장 안 됨 → 정합성 깨짐!
+    throw err;
+  }
+}
+```
+
+**문제 시나리오:**
+| 단계 | 동작 | 결과 |
+|------|------|------|
+| 1 | saveDbConnection 실행 | ✅ dbConnections에 저장됨 |
+| 2 | MySQL 연결 | ✅ 성공 |
+| 3 | 카탈로그 조회 | ❌ 에러 발생 |
+| 결과 | - | dbConnection만 저장됨, database 없음 |
+
+→ **dbConnections 컬렉션과 databases 컬렉션 간 정합성 깨짐**
+
+### 해결 방법: 2단계 저장 + Batched Writes
+
+**핵심 아이디어:** 모든 쓰기 작업을 하나의 batch로 묶어서 한 번에 커밋합니다.
+
+```typescript
+// 1단계: dto로 직접 MySQL 연결 (Firestore 조회 X)
+const connection = await createDirectConnection(dbInfo);
+
+// 2단계: MySQL에서 카탈로그 정보 조회
+const tableRows = await getTableCatalogInDb(...);
+
+// 3단계: Batch로 dbConnection + database + tables + columns 한 번에 저장
+await saveAllBatch(dbConnectionData, databaseData, tables);
+```
 
 | 상황 | 결과 |
 |------|------|
-| 전부 성공 | 모든 문서 저장됨 |
+| 전부 성공 | 모든 문서 저장됨 (dbConnection + database + tables + columns) |
 | 하나라도 실패 | **전체 롤백** (아무것도 저장 안 됨) |
+
+**정합성 보장:**
+- dbConnection과 database가 **원자적으로** 저장됨
+- 중간에 실패해도 어느 쪽에도 데이터가 남지 않음
 
 ---
 
@@ -66,77 +111,68 @@ MySQL (읽기 전용) → NestJS → Firestore (쓰기 전용)
 
 ```typescript
 async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
-  // ... 생략 ...
+  const { companyCode, companyName, ...dbInfo } = dto;
 
-  // databases/{dbName} 문서 저장
-  const databaseDoc: DatabaseDoc = { ... };
-  await this.firebaseService.saveDatabase(dbInfo.dbName, databaseDoc);  // API 호출 1
+  // ❌ 문제: dbConnection을 먼저 개별 저장
+  await this.firebaseService.saveDbConnection(companyCode, dbInfo);
 
-  // 테이블 및 컬럼 저장
-  await this.saveTablesAndColumns(dbInfo.dbName, masterRows, tableRows, tableColumnCount);
-}
+  // Firestore에서 조회하여 MySQL 연결
+  const connection = await this.catalogRepository.getConnectionToDB(companyCode);
 
-private async saveTablesAndColumns(...): Promise<void> {
-  const columnsByTable = this.groupColumnsByTable(tableRows);
+  try {
+    const isCatalogExist = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
+    if (isCatalogExist) throw new ConflictException('...');
 
-  await Promise.all(
-    masterRows.map(async (masterRow: any) => {
-      const tableName = masterRow.TABLE_NAME;
+    // 카탈로그 조회
+    const tableRows = await this.catalogRepository.getTableCatalogInDb(...);
+    const masterRows = await this.catalogRepository.getMasterCatalogInDb(...);
 
-      // 테이블 문서 저장 - 매번 API 호출
-      await this.firebaseService.saveTable(dbName, tableName, tableDoc);  // API 호출 N
-
-      // 컬럼들 저장 - 매번 API 호출
-      await Promise.all(
-        columns.map(async (col: any) => {
-          await this.firebaseService.saveColumn(dbName, tableName, col.COLUMN_NAME, columnDoc);  // API 호출 M
-        }),
-      );
-    }),
-  );
+    // ❌ 여기서 에러 발생 시 dbConnection만 저장된 상태
+    await this.firebaseService.saveDatabaseBatch(dbInfo.dbName, databaseDoc, tables);
+  } catch (err) {
+    throw err;  // dbConnection은 롤백 안 됨!
+  }
 }
 ```
 
 **문제점:**
-- `saveDatabase()` 1번 + `saveTable()` N번 + `saveColumn()` M번 = **1 + N + M번 API 호출**
-- 중간에 실패하면 일부 데이터만 저장됨
+- `saveDbConnection()`이 먼저 실행되어 개별 저장됨
+- 이후 과정에서 에러 발생 시 **dbConnection만 저장된 상태**로 남음
+- dbConnections ↔ databases 컬렉션 간 **정합성 깨짐**
 
 #### 수정 후 코드
 
 ```typescript
 async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
-  // ... 생략 ...
+  const { companyCode, companyName, ...dbInfo } = dto;
 
-  // databases/{dbName} 문서
-  const databaseDoc: DatabaseDoc = { ... };
+  // 이미 같은 DB가 저장되었다면 예외처리 (Firestore 조회만, 저장 X)
+  const isCatalogExist = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
+  if (isCatalogExist) throw new ConflictException('...');
 
-  // 테이블 및 컬럼 데이터 조립 (저장 X, 데이터 구조만 생성)
-  const tables = this.buildTablesData(masterRows, tableRows, tableColumnCount);
+  // ✅ 1단계: dto로 직접 MySQL 연결 (Firestore 조회 X)
+  const connection = await this.catalogRepository.createDirectConnection(dbInfo);
 
-  // Batch로 한 번에 저장
-  await this.firebaseService.saveDatabaseBatch(dbInfo.dbName, databaseDoc, tables);  // API 호출 1번!
-}
+  try {
+    // ✅ 2단계: MySQL에서 카탈로그 정보 조회
+    const tableRows = await this.catalogRepository.getTableCatalogInDb(...);
+    const masterRows = await this.catalogRepository.getMasterCatalogInDb(...);
 
-private buildTablesData(...): { tableName: string; tableDoc: TableDoc; columns: {...}[] }[] {
-  const columnsByTable = this.groupColumnsByTable(tableRows);
+    const databaseDoc: DatabaseDoc = { ... };
+    const tables = this.buildTablesData(masterRows, tableRows, tableColumnCount);
 
-  // 저장하지 않고 데이터 구조만 반환
-  return masterRows.map((masterRow: any) => {
-    const tableDoc: TableDoc = { ... };
-    const columns = (columnsByTable[tableName] || []).map((col: any) => ({
-      columnName: col.COLUMN_NAME,
-      columnDoc: { ... } as ColumnDoc,
-    }));
-
-    return { tableName, tableDoc, columns };
-  });
+    // ✅ 3단계: Batch로 dbConnection + database + tables + columns 한 번에 저장
+    await this.firebaseService.saveAllBatch(companyCode, dbInfo, dbInfo.dbName, databaseDoc, tables);
+  } catch (err) {
+    throw err;  // 에러 시 아무것도 저장 안 됨 (원자성 보장)
+  }
 }
 ```
 
 **개선점:**
-- 데이터 조립과 저장 로직 분리
-- `saveDatabaseBatch()` 한 번 호출로 모든 문서 저장
-- 원자성 보장 (전체 성공 또는 전체 실패)
+- `createDirectConnection()`: dto로 직접 MySQL 연결 (Firestore 조회 없이)
+- `saveAllBatch()`: dbConnection + database + tables + columns 모두 한 번에 저장
+- **원자성 보장**: 전체 성공 또는 전체 실패 (정합성 유지)
 
 ---
 
@@ -222,11 +258,75 @@ private async buildTablesDataForUpdate(...): Promise<{...}[]> {
 
 ---
 
-### 3. firebase.service.ts - 새로운 Batch 메서드
+### 3. catalog.repository.ts - 새로운 직접 연결 메서드
 
 #### 추가된 메서드
 
 ```typescript
+/* dto로 직접 MySQL 연결하는 함수 (Firestore 조회 없이) */
+async createDirectConnection(dbInfo: {
+  host: string;
+  port: number;
+  userName: string;
+  dbPw: string;
+  dbName: string;
+}): Promise<PoolConnection> {
+  try {
+    const pool = createPool({
+      host: dbInfo.host,
+      port: dbInfo.port,
+      user: dbInfo.userName,
+      password: dbInfo.dbPw,
+      database: dbInfo.dbName,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+
+    return pool.getConnection();
+  } catch (error) {
+    throw new Error(`Mysql DB 직접 연결이 실패되었습니다: ${error.message}`);
+  }
+}
+```
+
+**핵심 변경:**
+- 기존 `getConnectionToDB()`: Firestore에서 dbConnection 조회 후 연결
+- 신규 `createDirectConnection()`: dto로 직접 연결 (Firestore 조회 X)
+
+---
+
+### 4. firebase.service.ts - 새로운 Batch 메서드
+
+#### 추가된 메서드
+
+```typescript
+/* dbConnection + Database + Tables + Columns를 Batch로 한 번에 저장 (원자성 보장) */
+async saveAllBatch(
+  companyCode: string,
+  dbConnectionData: any,
+  dbName: string,
+  databaseDoc: DatabaseDoc,
+  tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+): Promise<void> {
+  const operations: { ref: DocumentReference; data: any }[] = [];
+
+  // dbConnection 문서 추가
+  const dbConnectionRef = this.firestore.collection('dbConnections').doc(companyCode);
+  const { dbPw, ...rest } = dbConnectionData;
+  const encryptedDbInfo = {
+    ...rest,
+    dbPw: encrypt(dbPw, this.configService),
+  };
+  operations.push({ ref: dbConnectionRef, data: encryptedDbInfo });
+
+  // Database + Tables + Columns 추가
+  const catalogOperations = this.buildBatchOperations(dbName, databaseDoc, tables);
+  operations.push(...catalogOperations);
+
+  await this.executeBatchInChunks(operations);
+}
+
 /* Database + Tables + Columns를 Batch로 한 번에 저장 */
 async saveDatabaseBatch(
   dbName: string,
@@ -286,6 +386,17 @@ private async executeBatchInChunks(operations: { ref: DocumentReference; data: a
 | 원자성 | ❌ 부분 저장 가능 | ✅ 전체 성공/실패 |
 | 코드 구조 | 조회 + 저장 혼합 | 조립 → 저장 분리 |
 | 500개 초과 대응 | 해당 없음 | 청크 분할 처리 |
+| **MySQL 연결** | Firestore 조회 후 연결 | **dto로 직접 연결** |
+| **dbConnection 저장** | 개별 선행 저장 | **Batch에 포함** |
+| **정합성** | ❌ dbConnection만 저장 가능 | ✅ 전체 원자성 보장 |
+
+### 수정된 파일 목록
+
+| 파일 | 변경 내용 |
+|------|-----------|
+| `catalog.repository.ts` | `createDirectConnection()` 메서드 추가 |
+| `firebase.service.ts` | `saveAllBatch()` 메서드 추가 |
+| `catalog.service.ts` | `createDbAndCatalog()` 2단계 저장 방식으로 수정 |
 
 ---
 
