@@ -53,17 +53,17 @@ export class CatalogService {
   async createDbAndCatalog(dto: CreateDbDto): Promise<void> {
     const { companyCode, companyName, ...dbInfo } = dto;
 
-    // DB 연결 정보 저장 (dbConnections 컬렉션)
-    await this.firebaseService.saveDbConnection(companyCode, dbInfo);
-    const connection = await this.catalogRepository.getConnectionToDB(companyCode);
-    try {
-      // 이미 같은 DB가 저장되었다면 예외처리
-      const isCatalogExist: boolean = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
-      if (isCatalogExist) {
-        throw new ConflictException('해당 DB는 이미 추가되었습니다.');
-      }
+    // 이미 같은 DB가 저장되었다면 예외처리
+    const isCatalogExist: boolean = await this.firebaseService.isDatabaseExist(dbInfo.dbName);
+    if (isCatalogExist) {
+      throw new ConflictException('해당 DB는 이미 추가되었습니다.');
+    }
 
-      // mysql에서 최신 카탈로그 정보 조회
+    // 1단계: dto로 직접 MySQL 연결
+    const connection = await this.catalogRepository.createDirectConnection(dbInfo);
+
+    try {
+      // 2단계: MySQL에서 카탈로그 정보 조회
       const tableRows = (await this.catalogRepository.getTableCatalogInDb(dbInfo.dbName, connection)) as any[];
       const masterRows = (await this.catalogRepository.getMasterCatalogInDb(dbInfo.dbName, connection)) as any[];
       const dbDataSize = await this.catalogRepository.getDatabaseDataSize(dbInfo.dbName, connection);
@@ -75,7 +75,7 @@ export class CatalogService {
       const tableList = masterRows.map((row: any) => row.TABLE_NAME);
       const totalRows = masterRows.reduce((sum: number, row: any) => sum + row.TABLE_ROWS, 0);
 
-      // databases/{dbName} 문서 저장
+      // databases/{dbName} 문서
       const databaseDoc: DatabaseDoc = {
         companyCode,
         companyName,
@@ -85,10 +85,12 @@ export class CatalogService {
         tableList,
         dbTag: dto.dbTag,
       };
-      await this.firebaseService.saveDatabase(dbInfo.dbName, databaseDoc);
 
-      // 테이블 및 컬럼 저장
-      await this.saveTablesAndColumns(dbInfo.dbName, masterRows, tableRows, tableColumnCount);
+      // 테이블 및 컬럼 데이터 조립
+      const tables = this.buildTablesData(masterRows, tableRows, tableColumnCount);
+
+      // 3단계: Batch로 dbConnection + database + tables + columns 한 번에 저장 (원자성 보장)
+      await this.firebaseService.saveAllBatch(companyCode, dbInfo, dbInfo.dbName, databaseDoc, tables);
     } catch (err) {
       this.logger.error(err);
       throw err;
@@ -97,49 +99,60 @@ export class CatalogService {
     }
   }
 
-  private async saveTablesAndColumns(
-    dbName: string,
+  /* 테이블 및 컬럼 데이터 조립 */
+  private buildTablesData(
     masterRows: any[],
     tableRows: any[],
     tableColumnCount: Record<string, number>,
-  ): Promise<void> {
-    // 테이블별로 그룹화
+  ): { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[] {
     const columnsByTable = this.groupColumnsByTable(tableRows);
 
-    await Promise.all(
-      masterRows.map(async (masterRow: any) => {
-        const tableName = masterRow.TABLE_NAME;
-        const key = `${masterRow.TABLE_SCHEMA}.${tableName}`;
+    return masterRows.map((masterRow: any) => {
+      const tableName = masterRow.TABLE_NAME;
+      const key = `${masterRow.TABLE_SCHEMA}.${tableName}`;
 
-        // 테이블 문서 저장
-        const tableDoc: TableDoc = {
-          rows: masterRow.TABLE_ROWS,
-          columns: tableColumnCount[key] || 0,
-          size: Number(masterRow.DATA_SIZE),
-          comment: masterRow.TABLE_COMMENT || '',
-          description: '',
-        };
+      const tableDoc: TableDoc = {
+        rows: masterRow.TABLE_ROWS,
+        columns: tableColumnCount[key] || 0,
+        size: Number(masterRow.DATA_SIZE),
+        comment: masterRow.TABLE_COMMENT || '',
+        description: '',
+      };
 
-        await this.firebaseService.saveTable(dbName, tableName, tableDoc);
+      /*
+       * <해당 테이블의 컬럼들을 Batch 저장용 구조로 변환>
+       * columnsByTable[tableName]: 테이블명으로 그룹화된 컬럼 배열
+       * || []: 컬럼이 없는 경우 빈 배열로 대체 (map 에러 방지)
+       * .map(): MySQL 컬럼 데이터 → { columnName, columnDoc } 형태로 변환
+       *
+       * <변환 예시>
+       * MySQL: { COLUMN_NAME: "id", COLUMN_TYPE: "int", ... }
+       *   ↓
+       * Batch용: { columnName: "id", columnDoc: { type: "int", ... } }
+       * 
+       * <출력 예시>
+       * [
+       *  {
+            tableName: 'admin',
+            tableDoc: { rows: 47, columns: 5, size: 0.05, comment: '', description: '' },
+            columns: [ [Object], [Object], [Object], [Object], [Object] ]
+          }, .... 
+         ]   
+       */
+      const columns = (columnsByTable[tableName] || []).map((col: any) => ({
+        columnName: col.COLUMN_NAME,
+        columnDoc: {
+          type: col.COLUMN_TYPE,
+          nullable: col.IS_NULLABLE,
+          default: col.COLUMN_DEFAULT,
+          key: col.COLUMN_KEY,
+          comment: col.COLUMN_COMMENT || '',
+          note: '', // 신규 컬럼이므로 빈 값
+        } as ColumnDoc,
+      }));
 
-        // 해당 테이블의 컬럼들 저장
-        const columns = columnsByTable[tableName] || [];
-        await Promise.all(
-          columns.map(async (col: any) => {
-            const columnDoc: ColumnDoc = {
-              type: col.COLUMN_TYPE,
-              nullable: col.IS_NULLABLE,
-              default: col.COLUMN_DEFAULT,
-              key: col.COLUMN_KEY,
-              comment: col.COLUMN_COMMENT || '',
-              note: '',
-            };
-
-            await this.firebaseService.saveColumn(dbName, tableName, col.COLUMN_NAME, columnDoc);
-          }),
-        );
-      }),
-    );
+      return { tableName, tableDoc, columns };
+    });
   }
 
   /* 컬럼 수 계산 */
@@ -352,17 +365,19 @@ export class CatalogService {
       const tableList = masterRows.map((row: any) => row.TABLE_NAME);
       const totalRows = masterRows.reduce((sum: number, row: any) => sum + row.TABLE_ROWS, 0);
 
-      // databases/{dbName} 문서 업데이트
+      // databases/{dbName} 문서
       const databaseDoc: Partial<DatabaseDoc> = {
         dbSize: dbDataSize,
         totalRows,
         lastUpdated: new Date(),
         tableList,
       };
-      await this.firebaseService.saveDatabase(dbName, databaseDoc as DatabaseDoc);
 
-      // 테이블 및 컬럼 저장
-      await this.updateTablesAndColumns(dbName, masterRows, tableRows, tableColumnCount);
+      // 테이블 및 컬럼 데이터 조립
+      const tables = await this.buildTablesDataForUpdate(dbName, masterRows, tableRows, tableColumnCount);
+
+      // Batch로 한 번에 업데이트
+      await this.firebaseService.updateCatalogBatch(dbName, databaseDoc, tables);
     } catch (err) {
       this.logger.error(err);
       throw err;
@@ -371,16 +386,16 @@ export class CatalogService {
     }
   }
 
-  /* 테이블 및 컬럼 업데이트 */
-  private async updateTablesAndColumns(
+  /* 업데이트용 테이블 및 컬럼 데이터 조립 */
+  private async buildTablesDataForUpdate(
     dbName: string,
     masterRows: any[],
     tableRows: any[],
     tableColumnCount: Record<string, number>,
-  ): Promise<void> {
+  ): Promise<{ tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[]> {
     const columnsByTable = this.groupColumnsByTable(tableRows);
 
-    await Promise.all(
+    return Promise.all(
       masterRows.map(async (masterRow: any) => {
         const tableName = masterRow.TABLE_NAME;
         const key = `${masterRow.TABLE_SCHEMA}.${tableName}`;
@@ -395,26 +410,28 @@ export class CatalogService {
           comment: masterRow.TABLE_COMMENT || '',
           description: existingTable?.description || '',
         };
-        await this.firebaseService.saveTable(dbName, tableName, tableDoc);
 
-        // 컬럼 업데이트
-        const columns = columnsByTable[tableName] || [];
-        await Promise.all(
-          columns.map(async (col: any) => {
-            // 기존 컬럼 정보 조회 (note 유지용)
+        // 컬럼 데이터 조립
+        const columnsData = columnsByTable[tableName] || [];
+        const columns = await Promise.all(
+          columnsData.map(async (col: any) => {
             const existingColumn = await this.firebaseService.getColumn(dbName, tableName, col.COLUMN_NAME);
 
-            const columnDoc: ColumnDoc = {
-              type: col.COLUMN_TYPE,
-              nullable: col.IS_NULLABLE,
-              default: col.COLUMN_DEFAULT,
-              key: col.COLUMN_KEY,
-              comment: col.COLUMN_COMMENT || '',
-              note: existingColumn?.note || '',
+            return {
+              columnName: col.COLUMN_NAME,
+              columnDoc: {
+                type: col.COLUMN_TYPE,
+                nullable: col.IS_NULLABLE,
+                default: col.COLUMN_DEFAULT,
+                key: col.COLUMN_KEY,
+                comment: col.COLUMN_COMMENT || '',
+                note: existingColumn?.note || '',
+              } as ColumnDoc,
             };
-            await this.firebaseService.saveColumn(dbName, tableName, col.COLUMN_NAME, columnDoc);
           }),
         );
+
+        return { tableName, tableDoc, columns };
       }),
     );
   }

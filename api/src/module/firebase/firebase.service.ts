@@ -8,6 +8,7 @@ import { DatabaseDoc, TableDoc, ColumnDoc } from '../catalog/interface/database.
 @Injectable()
 export class FirebaseService {
   private firestore: admin.firestore.Firestore;
+  private readonly CONNECTIONS_COLLECTION = 'dbConnections';
   private readonly DATABASES_COLLECTION = 'databases';
   private readonly TABLES_SUBCOLLECTION = 'tables';
   private readonly COLUMNS_SUBCOLLECTION = 'columns';
@@ -196,7 +197,7 @@ export class FirebaseService {
       .update({ description });
   }
 
-  /* 데이터베이스의 모든 테이블 서브컬렉션 조회 (스키마 비교용) */
+  /* 데이터베이스의 모든 테이블 서브컬렉션 조회 */
   async getAllTableCollections(dbName: string): Promise<admin.firestore.CollectionReference[]> {
     return await this.firestore
       .collection(this.DATABASES_COLLECTION)
@@ -211,7 +212,6 @@ export class FirebaseService {
   // ============================================================
 
   async saveDbConnection(companyCode: string, dbInfo: any): Promise<void> {
-    const collection = 'dbConnections';
     const docId = companyCode;
     const { dbPw, ...rest } = dbInfo;
     const encryptedDbInfo = {
@@ -219,13 +219,12 @@ export class FirebaseService {
       dbPw: encrypt(dbPw, this.configService),
     };
 
-    await this.firestore.collection(collection).doc(docId).set(encryptedDbInfo, { merge: true });
+    await this.firestore.collection(this.CONNECTIONS_COLLECTION).doc(docId).set(encryptedDbInfo, { merge: true });
   }
 
   async getDbConnection(companyCode: string): Promise<any> {
-    const collection = 'dbConnections';
     const docId = companyCode;
-    const docSnapshot = await this.firestore.collection(collection).doc(docId).get();
+    const docSnapshot = await this.firestore.collection(this.CONNECTIONS_COLLECTION).doc(docId).get();
 
     if (!docSnapshot.exists) {
       throw new Error(`해당 고객사에 대한 dbConnection 정보가 없습니다: ${companyCode}`);
@@ -237,5 +236,104 @@ export class FirebaseService {
       ...rest,
       password: decrypt(dbPw, this.configService),
     };
+  }
+
+  // ============================================================
+  // Batch 관련 메서드
+  // ============================================================
+
+  /* dbConnection + Database + Tables + Columns를 Batch로 한 번에 저장 (원자성 보장) */
+  async saveAllBatch(
+    companyCode: string,
+    dbConnectionData: any,
+    dbName: string,
+    databaseDoc: DatabaseDoc,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): Promise<void> {
+    const operations: { ref: admin.firestore.DocumentReference; data: any }[] = [];
+
+    // dbConnection 문서 추가
+    const dbConnectionRef = this.firestore.collection(this.CONNECTIONS_COLLECTION).doc(companyCode);
+    const { dbPw, ...rest } = dbConnectionData;
+    const encryptedDbInfo = {
+      ...rest,
+      dbPw: encrypt(dbPw, this.configService),
+    };
+    operations.push({ ref: dbConnectionRef, data: encryptedDbInfo });
+
+    // Database + Tables + Columns 추가
+    const catalogOperations = this.buildBatchOperations(dbName, databaseDoc, tables);
+    operations.push(...catalogOperations);
+
+    await this.executeBatchInChunks(operations);
+  }
+
+  /* Database + Tables + Columns를 Batch로 한 번에 저장 */
+  async saveDatabaseBatch(
+    dbName: string,
+    databaseDoc: DatabaseDoc,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): Promise<void> {
+    const operations = this.buildBatchOperations(dbName, databaseDoc, tables);
+    await this.executeBatchInChunks(operations);
+  }
+
+  /* 카탈로그 업데이트를 Batch로 처리 */
+  async updateCatalogBatch(
+    dbName: string,
+    databaseDoc: Partial<DatabaseDoc>,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): Promise<void> {
+    const operations = this.buildBatchOperations(dbName, databaseDoc as DatabaseDoc, tables);
+    await this.executeBatchInChunks(operations);
+  }
+
+  /* Batch 작업 목록 생성 */
+  private buildBatchOperations(
+    dbName: string,
+    databaseDoc: DatabaseDoc,
+    tables: { tableName: string; tableDoc: TableDoc; columns: { columnName: string; columnDoc: ColumnDoc }[] }[],
+  ): { ref: admin.firestore.DocumentReference; data: any }[] {
+    const operations: { ref: admin.firestore.DocumentReference; data: any }[] = [];
+
+    // Database 문서
+    const dbRef = this.firestore.collection(this.DATABASES_COLLECTION).doc(dbName);
+    operations.push({ ref: dbRef, data: databaseDoc });
+
+    // Tables 및 Columns 문서
+    tables.forEach(({ tableName, tableDoc, columns }) => {
+      const tableRef = dbRef.collection(this.TABLES_SUBCOLLECTION).doc(tableName);
+      operations.push({ ref: tableRef, data: tableDoc });
+
+      columns.forEach(({ columnName, columnDoc }) => {
+        const columnRef = tableRef.collection(this.COLUMNS_SUBCOLLECTION).doc(columnName);
+        operations.push({ ref: columnRef, data: columnDoc });
+      });
+    });
+
+    return operations;
+  }
+
+  /* 500개씩 청크로 나눠서 Batch 실행 */
+  private async executeBatchInChunks(
+    operations: { ref: admin.firestore.DocumentReference; data: any }[],
+  ): Promise<void> {
+    const BATCH_LIMIT = 500;
+    const chunks = this.chunkArray(operations, BATCH_LIMIT);
+
+    for (const chunk of chunks) {
+      const batch = this.firestore.batch();
+      chunk.forEach(({ ref, data }) => batch.set(ref, data, { merge: true }));
+      await batch.commit();
+    }
+  }
+
+  /* 배열을 지정된 크기로 분할 */
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
   }
 }

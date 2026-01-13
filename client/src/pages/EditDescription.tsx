@@ -102,7 +102,7 @@ const EditableDescription: React.FC<EditableDescriptionProps> = ({
       onClick={handleStartEdit}
     >
       <span className={`text-sm truncate flex-1 ${value ? 'text-gray-700' : 'text-gray-400 italic'}`}>
-        {value || 'Click to add description'}
+        {value || 'description을 입력해주세요'}
       </span>
       <Edit3 className="flex-shrink-0 w-3 h-3 text-gray-400 group-hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all" />
     </div>

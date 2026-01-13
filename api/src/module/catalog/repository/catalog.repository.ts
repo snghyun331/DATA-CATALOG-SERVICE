@@ -23,6 +23,32 @@ export class CatalogRepository {
     }
   }
 
+  /* dto로 직접 MySQL 연결하는 함수 (Firestore 조회 없이) */
+  async createDirectConnection(dbInfo: {
+    dbHost: string;
+    dbPort: number;
+    dbUser: string;
+    dbPw: string;
+    dbName: string;
+  }): Promise<PoolConnection> {
+    try {
+      const pool = createPool({
+        host: dbInfo.dbHost,
+        port: dbInfo.dbPort,
+        user: dbInfo.dbUser,
+        password: dbInfo.dbPw,
+        database: dbInfo.dbName,
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0,
+      });
+
+      return pool.getConnection();
+    } catch (error) {
+      throw new Error(`Mysql DB 연결이 실패되었습니다: ${error.message}`);
+    }
+  }
+
   /* Pool 생성 또는 캐시 재사용하는 함수 */
   private async getPool(companyCode: string): Promise<Pool> {
     if (!this.poolCache.has(companyCode)) {
