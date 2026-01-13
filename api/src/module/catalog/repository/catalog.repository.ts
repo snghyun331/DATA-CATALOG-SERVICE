@@ -45,7 +45,7 @@ export class CatalogRepository {
 
       return pool.getConnection();
     } catch (error) {
-      throw new Error(`Mysql DB 직접 연결이 실패되었습니다: ${error.message}`);
+      throw new Error(`Mysql DB 연결이 실패되었습니다: ${error.message}`);
     }
   }
 
