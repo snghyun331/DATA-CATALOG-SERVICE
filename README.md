@@ -16,13 +16,54 @@
 
 ## 📸 주요 화면
 
+### Catalog
+
 <table>
   <tr>
-    <td>
-      <img src="img/dashboard_home.png" width="400">
+    <td align="center">
+      <img src="img/dashboard_home.png" width="400"><br/>
+      홈 화면 (Database Catalog)
     </td>
-    <td>
-      <img src="img/erd_select.png" width="400">
+    <td align="center">
+      <img src="img/dashboard_table.png" width="400"><br/>
+      DB 내 테이블 관리 (Table Catalog)
+    </td>
+    <td align="center">
+      <img src="img/dashboard_column.png" width="400"><br/>
+      Table 내 컬럼 관리 (Column Catalog)
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="img/dashboard_add.png" width="400"><br/>
+      데이터베이스 추가
+    </td>
+    <td align="center">
+      <img src="img/dashboard_diff.png" width="400"><br/>
+      스키마 변경 자동 감지
+    </td>
+    <td align="center">
+      <img src="img/dashboard_update.png" width="400"><br/>
+      부가 설명 작성
+    </td>
+  </tr>
+</table>
+
+### ERD
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="img/erd_select.png" width="400"><br/>
+      ERD 홈 화면
+    </td>
+    <td align="center">
+      <img src="img/erd_sample.png" width="400"><br/>
+      DB별 ERD 조회
+    </td>
+    <td align="center">
+      <img src="img/erd_detail.png" width="400"><br/>
+      테이블 간 관계 정보 확인
     </td>
   </tr>
 </table>
