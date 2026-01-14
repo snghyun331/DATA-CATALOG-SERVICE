@@ -1,4 +1,4 @@
-# 📊 데이터 카탈로그 관리 시스템
+t# 📊 데이터 카탈로그 관리 시스템
 
 > MySQL 데이터베이스의 스키마 정보를 자동으로 수집하고 변경을 추척하며,
 > ERD로 시각화까지 제공하는 데이터 관리 플랫폼입니다.
@@ -9,7 +9,7 @@
 
 이 프로젝트는 **MySQL의 information_schema를 조회하여 스키마 정보를 자동으로 수집하고, Firestore에 저장하여 웹에서 쉽게 조회할 수 있도록 구현한 데이터 카탈로그 관리 시스템**입니다. **테이블 명세서 작성을 자동화하여 최신 상태를 유지하고 문서화 부담을 줄이는 것이 주요 목적**입니다.
 
-초기에는 Google Sheets API와 Python을 활용한 자동화를 시도했으나, API 사용량 제한으로 인해 현재 구조로 프로젝트 방향을 전환했습니다.
+초기에는 Google Sheets API와 Python을 활용한 자동화를 시도했으나, API 사용량 제한으로 인해 현재 구조로 프로젝트 방향을 전환했습니다.  
 ▶️ [Google Sheet API를 이용한 테이블 명세서 생성 자동화 바로가기](https://velog.io/@snghyun331/data-catalog-google-sheet-api)
 
 ---
@@ -37,6 +37,12 @@ MySQL은 실제 운영 중인 데이터베이스이며, `information_schema`를 
 - **Docker Compose:** NestJS 백엔드, React(Vite) 프론트엔드를 컨테이너로 구성하여 Dev 환경과 Production 환경의 일관성을 유지했습니다.
 - **Winston:** 로그 관리는 장애 대응의 핵심입니다. 일별 로그 로테이션과 레벨별 분류로 개발 환경에서의 디버깅을 효율화했습니다.
 - **crypto-js:** DB 비밀번호를 Firestore에 저장할 때 AES 암호화하여 보안을 강화했습니다.
+
+### Frontend Framework
+
+**React** + **Vite**
+
+- **Next.js 대신 Vite을 선택한 이유:** 프론트엔드는 가볍게 구성하고 싶었습니다. 설정이 단순하고 빌드 속도가 더 빨라 빠르게 개발할 수 있었습니다.
 
 ---
 
@@ -166,6 +172,9 @@ Firestore
 - `CatalogRepository`에서 고객사별 Connection Pool을 Map 자료구조(`Map<string, Pool>`)로 캐싱합니다. 처음 요청 시 Pool을 생성하고 캐시에 저장한 뒤, 이후 요청에서는 캐시된 Pool을 재사용하여 DB 연결 오버헤드를 최소화했습니다.
 - 고객사가 추가될 때마다 DB 연결 정보만 Firestore에 추가하면 즉시 해당 고객사의 스키마 정보를 수집할 수 있습니다.
 
+<details>
+<summary><u>코드 보기</u></summary>
+
 ```typescript
 // catalog.repository.ts
 private poolCache: Map<string, Pool> = new Map();
@@ -194,6 +203,8 @@ private async getPool(companyCode: string): Promise<Pool> {
 }
 ```
 
+</details>
+
 #### 2. **자동 스키마 수집: information_schema 쿼리 활용**
 
 MySQL의 `information_schema`쿼리는 데이터베이스 자체에 대한 메타데이터를 제공하는 쿼리입니다. 이 프로젝트에서는 세 가지 테이블을 활용하여 스키마 정보를 수집합니다.
@@ -203,6 +214,9 @@ MySQL의 `information_schema`쿼리는 데이터베이스 자체에 대한 메�
 - `TABLES` 테이블에서 테이블명, 행 수, 데이터 크기, 테이블 comment를 조회합니다.
 - `COLUMNS` 테이블에서 컬럼명, 타입, Nullable 여부, 기본값, 키 정보, 컬럼 comment를 조회합니다.
 - `KEY_COLUMN_USAGE` 테이블에서 Primary Key와 Foreign Key 관계를 조회하여 ERD 생성에 활용합니다.
+
+<details>
+<summary><u>쿼리 보기</u></summary>
 
 ```typescript
 // catalog.repository.ts
@@ -233,6 +247,8 @@ async getTableCatalogInDb(dbName: string, connection: PoolConnection) {
 }
 ```
 
+</details>
+
 #### 3. **스키마 변경 감지 (Diff)**
 
 MySQL(운영 DB)과 Firestore(카탈로그)에 저장된 스키마를 비교(diff)하여, 추가/삭제/수정 된 테이블과 컬럼을 감지합니다.
@@ -242,6 +258,9 @@ MySQL(운영 DB)과 Firestore(카탈로그)에 저장된 스키마를 비교(dif
 - MySQL에서 현재 스키마를 조회하고, Firestore에 저장된 스키마를 불러와 `compareSchemas` 함수로 비교합니다.
 - 테이블 추가/삭제, 컬럼 추가/삭제, 컬럼 타입 변경, Nullable 여부 변경을 감지합니다.
 - 변경 사항을 `{ changed: boolean, tables: {...}, columns: {...} }` 형태로 구조화하여 반환합니다.
+
+<details>
+<summary><u>코드 보기</u></summary>
 
 ```typescript
 // catalog.service.ts
@@ -309,6 +328,8 @@ private compareSchemas(newSchema: TableColumns[], oldSchema: TableColumns[]) {
 }
 ```
 
+</details>
+
 #### 4. **스키마 업데이트**
 
 감지된 변경 사항을 Firestore에 반영합니다. 업데이트 시, 기존에 사용자가 작성한 `description`(테이블 설명 - 수기 작성), `note`(컬럼 설명 - 수기 작성)가 사라지지 않도록 구현했습니다.
@@ -317,6 +338,9 @@ private compareSchemas(newSchema: TableColumns[], oldSchema: TableColumns[]) {
 
 - 삭제된 테이블과 컬럼을 먼저 처리한 후, 추가/수정된 정보를 업데이트합니다.
 - MySQL에서 조회한 최신 정보(`rows`, `columns`, `size`, `comment`, `type`, `nullable` 등)는 업데이트하되, 사용자가 수기 작성한 데이터는 보존하여 데이터 손실을 방지했습니다.
+
+<details>
+<summary><u>코드 보기</u></summary>
 
 ```typescript
 // catalog.service.ts
@@ -377,6 +401,8 @@ private async updateTablesAndColumns(
 }
 ```
 
+</details>
+
 #### 5. **ERD 시각화: Foreign Key 관계 추출**
 
 ERD를 생성하기 위해 `information_schema.KEY_COLUMN_USAGE` 테이블에서 Primary Key와 Foreign Key 관계를 추출했습니다.
@@ -387,6 +413,9 @@ ERD를 생성하기 위해 `information_schema.KEY_COLUMN_USAGE` 테이블에서
 - Primary Key 정보를 조회하여 각 테이블의 기본 키를 파악합니다.
 - **클러스터링 알고리즘:** 외래키로 연결된 테이블들을 BFS로 탐색하고 같은 클러스터로 그룹화하여, 연관 테이블끼리 가까이 배치했습니다.
 - 이 정보를 프론트엔드에 전달하면, 노드(테이블)와 엣지(관계)로 ERD를 시각화할 수 있습니다.
+
+<details>
+<summary><u>쿼리 보기</u></summary>
 
 ```typescript
 // catalog.repository.ts
@@ -417,6 +446,8 @@ async getPrimaryKeys(dbName: string, connection: PoolConnection) {
   return rows;
 }
 ```
+
+</details>
 
 ### 아키텍처 설계 원칙
 
