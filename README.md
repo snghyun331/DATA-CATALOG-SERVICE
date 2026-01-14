@@ -1,4 +1,4 @@
-t# 📊 데이터 카탈로그 관리 시스템
+# 📊 데이터 카탈로그 관리 시스템
 
 > MySQL 데이터베이스의 스키마 정보를 자동으로 수집하고 변경을 추척하며,
 > ERD로 시각화까지 제공하는 데이터 관리 플랫폼입니다.
@@ -11,6 +11,21 @@ t# 📊 데이터 카탈로그 관리 시스템
 
 초기에는 Google Sheets API와 Python을 활용한 자동화를 시도했으나, API 사용량 제한으로 인해 현재 구조로 프로젝트 방향을 전환했습니다.  
 ▶️ [Google Sheet API를 이용한 테이블 명세서 생성 자동화 바로가기](https://velog.io/@snghyun331/data-catalog-google-sheet-api)
+
+---
+
+## 📸 주요 화면
+
+<table>
+  <tr>
+    <td>
+      <img src="img/dashboard_home.png" width="400">
+    </td>
+    <td>
+      <img src="img/erd_sample.png" width="400">
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -205,7 +220,7 @@ private async getPool(companyCode: string): Promise<Pool> {
 
 </details>
 
-#### 2. **자동 스키마 수집: information_schema 쿼리 활용**
+#### 2. **스키마 수집: information_schema 쿼리 활용**
 
 MySQL의 `information_schema`쿼리는 데이터베이스 자체에 대한 메타데이터를 제공하는 쿼리입니다. 이 프로젝트에서는 세 가지 테이블을 활용하여 스키마 정보를 수집합니다.
 
