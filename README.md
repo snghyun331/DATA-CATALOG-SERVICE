@@ -1,6 +1,6 @@
 # 📊 데이터 카탈로그 관리 시스템
 
-> MySQL 데이터베이스의 스키마 정보를 자동으로 수집하고 변경을 추척하며,
+> MySQL 데이터베이스의 스키마 정보를 자동으로 수집하고 변경을 추척하며,  
 > ERD로 시각화까지 제공하는 데이터 관리 플랫폼입니다.
 
 회사의 데이터베이스는 계속 변화합니다. 테이블이 추가되고, 컬럼이 수정되고, 관계가 복잡해집니다. 개발자는 **"이 컬럼은 무엇이고 어디에 사용되지?"** , **"이 테이블은 무엇과 연결되어 있지?"** 라는 질문에 답하기 위해 매번 DB에 접속해서 확인해야 합니다.
@@ -20,30 +20,32 @@
 
 <table>
   <tr>
-    <td align="center">
-      <img src="img/dashboard_home.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/dashboard_home.png" width="800"><br/>
       홈 화면 (Database Catalog)
     </td>
-    <td align="center">
-      <img src="img/dashboard_table.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/dashboard_add.png" width="800"><br/>
+      데이터베이스 추가
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/dashboard_table.png" width="800"><br/>
       DB 내 테이블 관리 (Table Catalog)
     </td>
-    <td align="center">
-      <img src="img/dashboard_column.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/dashboard_column.png" width="800"><br/>
       Table 내 컬럼 관리 (Column Catalog)
     </td>
   </tr>
   <tr>
-    <td align="center">
-      <img src="img/dashboard_add.png" width="400"><br/>
-      데이터베이스 추가
-    </td>
-    <td align="center">
-      <img src="img/dashboard_diff.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/dashboard_diff.png" width="800"><br/>
       스키마 변경 자동 감지
     </td>
-    <td align="center">
-      <img src="img/dashboard_update.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/dashboard_update.png" width="800"><br/>
       부가 설명 작성
     </td>
   </tr>
@@ -53,18 +55,20 @@
 
 <table>
   <tr>
-    <td align="center">
-      <img src="img/erd_select.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/erd_select.png" width="800"><br/>
       ERD 홈 화면
     </td>
-    <td align="center">
-      <img src="img/erd_sample.png" width="400"><br/>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/erd_sample.png" width="800"><br/>
       DB별 ERD 조회
     </td>
-    <td align="center">
-      <img src="img/erd_detail.png" width="400"><br/>
-      테이블 간 관계 정보 확인
     </td>
+  </tr>
+  <tr>
+    <td align="center" style="font-size: 9px;">
+      <img src="img/erd_detail.png" width="800"><br/>
+      테이블 간 관계 정보 확인
   </tr>
 </table>
 
