@@ -22,7 +22,7 @@
       <img src="img/dashboard_home.png" width="400">
     </td>
     <td>
-      <img src="img/erd_sample.png" width="400">
+      <img src="img/erd_select.png" width="400">
     </td>
   </tr>
 </table>
@@ -260,6 +260,33 @@ async getTableCatalogInDb(dbName: string, connection: PoolConnection) {
   const [rows] = await connection.query(query);
   return rows;
 }
+
+async getForeignKeyRelations(dbName: string, connection: PoolConnection) {
+  const query = `
+    SELECT
+      TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME,
+      REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = '${dbName}'
+      AND REFERENCED_TABLE_NAME IS NOT NULL
+    ORDER BY TABLE_NAME, COLUMN_NAME
+  `;
+  const [rows] = await connection.query(query);
+  return rows;
+}
+
+async getPrimaryKeys(dbName: string, connection: PoolConnection) {
+  const query = `
+    SELECT
+      TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = '${dbName}'
+      AND CONSTRAINT_NAME = 'PRIMARY'
+    ORDER BY TABLE_NAME, ORDINAL_POSITION
+  `;
+  const [rows] = await connection.query(query);
+  return rows;
+}
 ```
 
 </details>
@@ -430,35 +457,78 @@ ERD를 생성하기 위해 `information_schema.KEY_COLUMN_USAGE` 테이블에서
 - 이 정보를 프론트엔드에 전달하면, 노드(테이블)와 엣지(관계)로 ERD를 시각화할 수 있습니다.
 
 <details>
-<summary><u>쿼리 보기</u></summary>
+<summary><u>코드 보기</u></summary>
 
 ```typescript
-// catalog.repository.ts
-async getForeignKeyRelations(dbName: string, connection: PoolConnection) {
-  const query = `
-    SELECT
-      TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME,
-      REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
-    FROM information_schema.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = '${dbName}'
-      AND REFERENCED_TABLE_NAME IS NOT NULL
-    ORDER BY TABLE_NAME, COLUMN_NAME
-  `;
-  const [rows] = await connection.query(query);
-  return rows;
-}
+// catalog.service.ts
+/* ERD 데이터를 조회하는 함수 */
+async getDatabaseERD(dbName: string) {
+  const dbData = await this.firebaseService.getDatabase(dbName);
+  if (!dbData) {
+    throw new Error(`Database를 찾을 수 없습니다: ${dbName}`);
+  }
 
-async getPrimaryKeys(dbName: string, connection: PoolConnection) {
-  const query = `
-    SELECT
-      TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
-    FROM information_schema.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = '${dbName}'
-      AND CONSTRAINT_NAME = 'PRIMARY'
-    ORDER BY TABLE_NAME, ORDINAL_POSITION
-  `;
-  const [rows] = await connection.query(query);
-  return rows;
+  const companyCode = dbData.companyCode;
+  const connection = await this.catalogRepository.getConnectionToDB(companyCode);
+
+  try {
+    const [tables, foreignKeys, primaryKeys] = await Promise.all([
+      this.catalogRepository.getMasterCatalogInDb(dbName, connection),
+      this.catalogRepository.getForeignKeyRelations(dbName, connection),
+      this.catalogRepository.getPrimaryKeys(dbName, connection),
+    ]);
+
+    const tableNodes = (tables as any[]).map((table: any) => ({
+      id: table.TABLE_NAME,
+      name: table.TABLE_NAME,
+      comment: table.TABLE_COMMENT || '',
+      rows: table.TABLE_ROWS,
+      size: table.DATA_SIZE,
+    }));
+
+    const relationships = (foreignKeys as any[]).map((fk: any) => ({
+      from: fk.TABLE_NAME,
+      to: fk.REFERENCED_TABLE_NAME,
+      fromColumn: fk.COLUMN_NAME,
+      toColumn: fk.REFERENCED_COLUMN_NAME,
+      constraintName: fk.CONSTRAINT_NAME,
+    }));
+
+    const primaryKeyMap: Record<string, string[]> = {};
+    (primaryKeys as any[]).forEach((pk: any) => {
+      if (!primaryKeyMap[pk.TABLE_NAME]) {
+        primaryKeyMap[pk.TABLE_NAME] = [];
+      }
+      primaryKeyMap[pk.TABLE_NAME].push(pk.COLUMN_NAME);
+    });
+
+    const foreignKeyMap: Record<string, any[]> = {};
+    (foreignKeys as any[]).forEach((fk: any) => {
+      if (!foreignKeyMap[fk.TABLE_NAME]) {
+        foreignKeyMap[fk.TABLE_NAME] = [];
+      }
+      foreignKeyMap[fk.TABLE_NAME].push({
+        column: fk.COLUMN_NAME,
+        references: `${fk.REFERENCED_TABLE_NAME}.${fk.REFERENCED_COLUMN_NAME}`,
+        referencedTable: fk.REFERENCED_TABLE_NAME,
+        referencedColumn: fk.REFERENCED_COLUMN_NAME,
+        constraintName: fk.CONSTRAINT_NAME,
+      });
+    });
+
+    return {
+      tables: tableNodes,
+      relationships,
+      primaryKeys: primaryKeyMap,
+      foreignKeys: foreignKeyMap,
+      dbName,
+    };
+  } catch (err) {
+    this.logger.error(err);
+    throw err;
+  } finally {
+    connection.release();
+  }
 }
 ```
 
