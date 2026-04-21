@@ -95,7 +95,7 @@ export class CatalogService {
       this.logger.error(err);
       throw err;
     } finally {
-      connection.release();
+      await connection.end();
     }
   }
 

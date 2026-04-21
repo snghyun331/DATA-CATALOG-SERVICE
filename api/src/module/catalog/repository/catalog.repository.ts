@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Pool, PoolConnection, createPool } from 'mysql2/promise';
+import { Connection, Pool, PoolConnection, createConnection, createPool } from 'mysql2/promise';
 import { ConnectDBConfig } from '../../../config/db.config';
+
+/* Connection과 PoolConnection 모두 .query()를 지원하므로 쿼리 실행용 공통 타입 */
+type QueryableConnection = Pick<Connection, 'query'>;
 
 @Injectable()
 export class CatalogRepository {
+  private readonly logger = new Logger(CatalogRepository.name);
   private poolCache: Map<string, Pool> = new Map();
 
   constructor(
@@ -23,55 +27,58 @@ export class CatalogRepository {
     }
   }
 
-  /* dto로 직접 MySQL 연결하는 함수 (Firestore 조회 없이) */
+  /* dto로 직접 MySQL 연결하는 함수 (Firestore 조회 없이, 1회용 단일 커넥션) */
   async createDirectConnection(dbInfo: {
     dbHost: string;
     dbPort: number;
     dbUser: string;
     dbPw: string;
     dbName: string;
-  }): Promise<PoolConnection> {
+  }): Promise<Connection> {
     try {
-      const pool = createPool({
+      return await createConnection({
         host: dbInfo.dbHost,
         port: dbInfo.dbPort,
         user: dbInfo.dbUser,
         password: dbInfo.dbPw,
         database: dbInfo.dbName,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
       });
-
-      return pool.getConnection();
     } catch (error) {
       throw new Error(`Mysql DB 연결이 실패되었습니다: ${error.message}`);
     }
   }
 
-  /* Pool 생성 또는 캐시 재사용하는 함수 */
+  /* Pool 생성 또는 캐시 재사용 (동시 생성 race 방지: Promise 캐시) */
+  private poolPromiseCache: Map<string, Promise<Pool>> = new Map();
+
   private async getPool(companyCode: string): Promise<Pool> {
-    if (!this.poolCache.has(companyCode)) {
-      const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
-
-      const pool = createPool({
-        host: dbConfig.host,
-        port: dbConfig.port,
-        user: dbConfig.userName,
-        password: dbConfig.password,
-        database: dbConfig.dbName,
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-      });
-
-      this.poolCache.set(companyCode, pool);
+    if (!this.poolPromiseCache.has(companyCode)) {
+      const poolPromise = this.createAndCachePool(companyCode);
+      this.poolPromiseCache.set(companyCode, poolPromise);
     }
 
-    return this.poolCache.get(companyCode)!;
+    return this.poolPromiseCache.get(companyCode)!;
   }
 
-  async getTableCatalogInDb(dbName: string, connection: PoolConnection) {
+  private async createAndCachePool(companyCode: string): Promise<Pool> {
+    const dbConfig = await this.connectDBConfig.getDBConfig(companyCode);
+
+    const pool = createPool({
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.userName,
+      password: dbConfig.password,
+      database: dbConfig.dbName,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+
+    this.poolCache.set(companyCode, pool);
+    return pool;
+  }
+
+  async getTableCatalogInDb(dbName: string, connection: QueryableConnection) {
     const query = `
       SELECT 
       TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, COLUMN_TYPE, COLUMN_KEY, COLUMN_COMMENT
@@ -84,7 +91,7 @@ export class CatalogRepository {
     return rows;
   }
 
-  async getMasterCatalogInDb(dbName: string, connection: PoolConnection) {
+  async getMasterCatalogInDb(dbName: string, connection: QueryableConnection) {
     const query = `
       SELECT 
       TABLE_SCHEMA, TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, ROUND((DATA_LENGTH / 1024 / 1024),2) as DATA_SIZE
@@ -97,7 +104,7 @@ export class CatalogRepository {
     return rows;
   }
 
-  async getDatabaseDataSize(dbName: string, connection: PoolConnection): Promise<number> {
+  async getDatabaseDataSize(dbName: string, connection: QueryableConnection): Promise<number> {
     const query = `
       SELECT 
       ROUND(SUM(DATA_LENGTH) / 1024 / 1024, 2) AS DB_DATA_SIZE
@@ -109,7 +116,7 @@ export class CatalogRepository {
     return Number(rows[0].DB_DATA_SIZE);
   }
 
-  async getForeignKeyRelations(dbName: string, connection: PoolConnection) {
+  async getForeignKeyRelations(dbName: string, connection: QueryableConnection) {
     const query = `
       SELECT 
       TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
@@ -123,7 +130,7 @@ export class CatalogRepository {
     return rows;
   }
 
-  async getPrimaryKeys(dbName: string, connection: PoolConnection) {
+  async getPrimaryKeys(dbName: string, connection: QueryableConnection) {
     const query = `
       SELECT 
       TABLE_NAME, COLUMN_NAME, CONSTRAINT_NAME
