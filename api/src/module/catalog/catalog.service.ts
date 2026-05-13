@@ -448,17 +448,12 @@ export class CatalogService {
   async getDbList() {
     const databases = await this.firebaseService.getAllDatabases();
 
-    return Promise.all(
-      databases.map(async ({ dbName, data }) => {
-        const tables = await this.firebaseService.getAllTables(dbName);
-        return {
-          dbName,
-          size: data.dbSize,
-          lastUpdate: data.lastUpdated,
-          tables: tables.length,
-        };
-      }),
-    );
+    return databases.map(({ dbName, data }) => ({
+      dbName,
+      size: data.dbSize,
+      lastUpdate: data.lastUpdated,
+      tables: data.tableList?.length ?? 0,
+    }));
   }
 
   /* DB 통계를 조회하는 함수 */
