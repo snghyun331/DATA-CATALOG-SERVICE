@@ -4,6 +4,7 @@ import { FirebaseService } from '../firebase/firebase.service';
 import { CreateDbDto } from './dto/createDb.dto';
 import { MasterCatalog, TableCatalog, TableColumns } from './interface/catalog.interface';
 import { DatabaseDoc, TableDoc, ColumnDoc } from './interface/database.interface';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class CatalogService {
@@ -12,13 +13,34 @@ export class CatalogService {
     private readonly logger: LoggerService,
     private readonly catalogRepository: CatalogRepository,
     private readonly firebaseService: FirebaseService,
+    private readonly redisService: RedisService,
   ) {}
+
+  /* Redis TTL */
+  private readonly TTL = {
+    MASTER: 60 * 30, // 30분
+    TABLE: 60 * 30, // 30분
+  };
+  /* 캐시 키 헬퍼 */
+  private keyMaster(dbName: string): string {
+    return `dc:v1:db:${dbName.trim()}:tables`;
+  }
+  private keyTable(dbName: string, tableName: string): string {
+    return `dc:v1:db:${dbName.trim()}:table:${tableName.trim()}:columns`;
+  }
 
   /* 마스터 카탈로그를 조회하는 함수 */
   async getMasterCatalog(dbName: string): Promise<MasterCatalog[]> {
+    const key = this.keyMaster(dbName);
+
+    // 캐시 존재하면 즉시 반환
+    const cached = await this.redisService.getValues(key);
+    if (cached) return cached as unknown as MasterCatalog[];
+
+    // 캐시 미존재 시 Firestore 조회
     const tables: { tableName: string; data: TableDoc }[] = await this.firebaseService.getAllTables(dbName);
 
-    return tables.map(({ tableName, data }) => ({
+    const result: MasterCatalog[] = tables.map(({ tableName, data }) => ({
       TABLE_SCHEMA: dbName,
       TABLE_NAME: tableName,
       TABLE_ROWS: data.rows,
@@ -27,16 +49,30 @@ export class CatalogService {
       TABLE_DESCRIPTION: data.description,
       DATA_SIZE: data.size,
     }));
+
+    // 빈 결과는 캐시하지 않는다
+    if (result.length > 0) {
+      await this.redisService.setValues(key, result, this.TTL.MASTER);
+    }
+
+    return result;
   }
 
   /* 테이블 카탈로그를 조회하는 함수 */
   async getTableCatalog(dbName: string, tableName: string): Promise<TableCatalog[]> {
+    const key = this.keyTable(dbName, tableName);
+
+    // 캐시 존재하면 즉시 반환
+    const cached = await this.redisService.getValues(key);
+    if (cached) return cached as unknown as TableCatalog[];
+
+    // 캐시 미존재 시 Firestore 조회
     const columns: { columnName: string; data: ColumnDoc }[] = await this.firebaseService.getAllColumns(
       dbName,
       tableName,
     );
 
-    return columns.map(({ columnName, data }) => ({
+    const result: TableCatalog[] = columns.map(({ columnName, data }) => ({
       TABLE_SCHEMA: dbName,
       TABLE_NAME: tableName,
       COLUMN_NAME: columnName,
@@ -47,6 +83,13 @@ export class CatalogService {
       COLUMN_COMMENT: data.comment,
       COLUMN_NOTE: data.note,
     }));
+
+    // 빈 결과는 캐시하지 않는다
+    if (result.length > 0) {
+      await this.redisService.setValues(key, result, this.TTL.TABLE);
+    }
+
+    return result;
   }
 
   /* 새 DB 등록 및 카탈로그 생성하는 함수 */
@@ -91,6 +134,9 @@ export class CatalogService {
 
       // 3단계: Batch로 dbConnection + database + tables + columns 한 번에 저장 (원자성 보장)
       await this.firebaseService.saveAllBatch(companyCode, dbInfo, dbInfo.dbName, databaseDoc, tables);
+
+      // 같은 dbName으로 과거 빈 결과 캐시가 남아있을 수 있어, master 캐시 선제 무효화
+      await this.redisService.delKeys(this.keyMaster(dbInfo.dbName));
     } catch (err) {
       this.logger.error(err);
       throw err;
@@ -378,6 +424,19 @@ export class CatalogService {
 
       // Batch로 한 번에 업데이트
       await this.firebaseService.updateCatalogBatch(dbName, databaseDoc, tables);
+
+      // diffData의 모든 테이블(추가/삭제/컬럼변경)의 컬럼 캐시 + master 캐시 일괄 무효화
+      const affectedTables = new Set<string>([
+        ...((diffData?.tables?.added ?? []) as { table: string }[]).map((t) => t.table),
+        ...((diffData?.tables?.deleted ?? []) as { table: string }[]).map((t) => t.table),
+        ...((diffData?.columns?.added ?? []) as { table: string }[]).map((c) => c.table),
+        ...((diffData?.columns?.deleted ?? []) as { table: string }[]).map((c) => c.table),
+        ...((diffData?.columns?.updated ?? []) as { table: string }[]).map((c) => c.table),
+      ]);
+      await this.redisService.delKeys([
+        this.keyMaster(dbName),
+        ...Array.from(affectedTables).map((t) => this.keyTable(dbName, t)),
+      ]);
     } catch (err) {
       this.logger.error(err);
       throw err;
@@ -438,10 +497,14 @@ export class CatalogService {
 
   async updateColumnNote(dbName: string, tableName: string, columnName: string, note: string): Promise<void> {
     await this.firebaseService.updateColumnNote(dbName, tableName, columnName, note);
+
+    await this.redisService.delKeys(this.keyTable(dbName, tableName));
   }
 
   async updateTableDescription(dbName: string, tableName: string, description: string): Promise<void> {
     await this.firebaseService.updateTableDescription(dbName, tableName, description);
+
+    await this.redisService.delKeys(this.keyMaster(dbName));
   }
 
   /* DB 목록을 조회하는 함수 */
